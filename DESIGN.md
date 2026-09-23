@@ -2,6 +2,10 @@
 
 The desktop project page concept is [project-page-desktop.png](design/concepts/project-page-desktop.png). Use it as the visual reference for this implementation, with the legacy project status shown in that image omitted. The interface is a quiet reading workspace: compact navigation, clear typography, a stable project heading, and an open two-dimensional canvas with grid-snapped modules. iPad adaptation is deferred.
 
+## Design frames
+
+Use a 1440 × 1024 CSS-pixel frame for desktop exploration in [Dashboard_V1](https://www.figma.com/design/MMaBQyriJEDU5naDco5Efe/Dashboard_V1?node-id=0-1). Keep the current UI reference beside a separate editable exploration copy. This frame is a design baseline, not a fixed application size; check narrower viewports and create separate frames when designing responsive behavior.
+
 ## Structure
 
 - The left sidebar contains a project search field and project pages. It has no account or workspace switcher.
