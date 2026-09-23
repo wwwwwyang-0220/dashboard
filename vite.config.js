@@ -8,7 +8,7 @@ export default defineConfig({
     allowedHosts: ['macbook2019.tail885f80.ts.net'],
     strictPort: true,
     proxy: {
-      '/api': 'http://127.0.0.1:3001',
+      '/api': process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:3001',
     },
   },
 })

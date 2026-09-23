@@ -2,12 +2,12 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const dataFile = fileURLToPath(
+const dataFile = process.env.PROJECTS_DATA_FILE ?? fileURLToPath(
   new URL('../data/projects.json', import.meta.url),
 )
-const allowedStatuses = new Set(['active', 'planned', 'paused', 'completed'])
 const allowedBreakpoints = new Set(['desktop', 'tablet', 'mobile'])
 const layoutFields = ['x', 'y', 'w', 'h']
+const blockTypes = new Set(['text', 'checklist', 'references'])
 
 let writeQueue = Promise.resolve()
 
@@ -27,7 +27,39 @@ export async function listProjects() {
     throw new Error('Project data must be a JSON array')
   }
 
-  return projects.map(normalizeProjectLayouts)
+  return projects.map((project, index) => {
+    const withoutStatus = { ...project }
+    delete withoutStatus.status
+    return {
+      ...normalizeProjectLayouts(withoutStatus, index),
+      blocks: project.blocks ?? [],
+    }
+  })
+}
+
+export function updateProjectBlocks(id, input) {
+  const operation = writeQueue.then(async () => {
+    const projects = await listProjects()
+    const projectIndex = projects.findIndex((project) => project.id === id)
+
+    if (projectIndex === -1) {
+      throw new ProjectStoreError('Project not found', 404)
+    }
+
+    if (!Array.isArray(input) || input.length > 200) {
+      throw new ProjectStoreError('blocks must be an array of at most 200 items', 400)
+    }
+
+    const ids = new Set()
+    const blocks = input.map((block) => validateBlock(block, ids))
+    const updatedProject = { ...projects[projectIndex], blocks }
+    projects[projectIndex] = updatedProject
+    await writeProjectsAtomically(projects)
+    return updatedProject
+  })
+
+  writeQueue = operation.catch(() => {})
+  return operation
 }
 
 export function updateProject(id, input) {
@@ -43,7 +75,6 @@ export function updateProject(id, input) {
       ...projects[projectIndex],
       title: validateText(input.title, 'title', 120),
       description: validateText(input.description, 'description', 1000),
-      status: validateStatus(input.status),
     }
 
     projects[projectIndex] = updatedProject
@@ -159,14 +190,6 @@ function validateText(value, fieldName, maximumLength) {
   return normalizedValue
 }
 
-function validateStatus(value) {
-  if (!allowedStatuses.has(value)) {
-    throw new ProjectStoreError('Invalid project status', 400)
-  }
-
-  return value
-}
-
 function validateLayout(value) {
   const layout = {}
 
@@ -191,6 +214,56 @@ function validateLayout(value) {
   }
 
   return layout
+}
+
+function validateBlock(value, ids) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new ProjectStoreError('Invalid block', 400)
+  }
+
+  if (typeof value.id !== 'string' || !/^[a-zA-Z0-9-]{1,80}$/.test(value.id) || ids.has(value.id)) {
+    throw new ProjectStoreError('Invalid or duplicate block id', 400)
+  }
+  ids.add(value.id)
+
+  if (!blockTypes.has(value.type)) {
+    throw new ProjectStoreError('Invalid block type', 400)
+  }
+
+  const position = {}
+  for (const field of layoutFields) {
+    if (!Number.isInteger(value[field]) || Math.abs(value[field]) > 100000) {
+      throw new ProjectStoreError(`Invalid block ${field}`, 400)
+    }
+    position[field] = value[field]
+  }
+  if (position.w < 8 || position.w > 40 || position.h < 6 || position.h > 40) {
+    throw new ProjectStoreError('Invalid block size', 400)
+  }
+
+  const title = validateText(value.title, 'block title', 120)
+  if (value.type === 'text') {
+    if (typeof value.content !== 'string' || value.content.length > 10000) {
+      throw new ProjectStoreError('Invalid block content', 400)
+    }
+    return { id: value.id, type: value.type, ...position, title, content: value.content }
+  }
+
+  if (!Array.isArray(value.items) || value.items.length > 100) {
+    throw new ProjectStoreError('Invalid block items', 400)
+  }
+  const items = value.items.map((item) => {
+    if (typeof item?.text !== 'string' || item.text.length > 500) {
+      throw new ProjectStoreError('Invalid block item', 400)
+    }
+    if (value.type === 'checklist' && typeof item.done !== 'boolean') {
+      throw new ProjectStoreError('Invalid checklist item', 400)
+    }
+    return value.type === 'checklist'
+      ? { text: item.text, done: item.done }
+      : { text: item.text }
+  })
+  return { id: value.id, type: value.type, ...position, title, items }
 }
 
 async function writeProjectsAtomically(projects) {

@@ -1,75 +1,40 @@
----
-version: alpha
-name: Project Workbench
-description: A bright, rearrangeable workspace for personal projects.
-colors:
-  primary: "#3689ff"
-  ink: "#0b1730"
-  secondary-ink: "#405678"
-  canvas: "#f5f9ff"
-  surface: "#ffffff"
-  status-active: "#18b95b"
-  status-paused: "#ff9138"
-  status-planned: "#f2c914"
-  status-completed: "#8368e8"
-  error: "#ef4b4b"
-typography:
-  project-title:
-    fontFamily: "-apple-system, BlinkMacSystemFont, \"SF Pro Display\", \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif"
-    fontSize: 28px
-    fontWeight: 700
-    lineHeight: 1.15
-  description:
-    fontFamily: "-apple-system, BlinkMacSystemFont, \"SF Pro Display\", \"SF Pro Text\", \"Helvetica Neue\", Arial, sans-serif"
-    fontSize: 17px
-    fontWeight: 400
-    lineHeight: 1.42
-spacing:
-  compact: 8px
-  control: 16px
-  card: 28px
-  card-wide: 46px
-rounded:
-  card: 22px
-  toolbar: 999px
----
+# Project workspace visual direction
 
-## Overview
+The desktop project page concept is [project-page-desktop.png](design/concepts/project-page-desktop.png). Use it as the visual reference for this implementation, with the legacy project status shown in that image omitted. The interface is a quiet reading workspace: compact navigation, clear typography, a stable project heading, and an open two-dimensional canvas with grid-snapped modules. iPad adaptation is deferred.
 
-Think of a well-lit drafting table holding movable project sheets. The cool blue canvas recedes; the white cards carry the work; a small floating toolbar identifies the page and reports whether edits are saved. Project titles, descriptions, and status should be understandable at a glance and editable in place. The character comes from the arrangement of real project content, crisp type, narrow status marks, and responsive movement. Build a personal web workspace rather than an imitation of a desktop operating system.
+## Structure
 
-## Colors
+- The left sidebar contains a project search field and project pages. It has no account or workspace switcher.
+- A 55px top strip contains only the sidebar toggle and save status. The sidebar defaults to 308px wide.
+- The project heading is separate from the canvas. It contains the editable project name and description and stays visible while panning.
+- The canvas pans in both axes. Modules snap to a 24px coordinate grid; every fifth unit is indicated by a faint cross. The grid supports arrangement without dominating reading.
+- Add block and zoom/origin controls stay anchored to the canvas viewport. Modules retain their coordinates when the sidebar width changes.
 
-Use {colors.ink} for primary text, {colors.secondary-ink} for supporting text, and {colors.canvas} behind bright {colors.surface} cards. Use {colors.primary} for focus, active interaction, and saving feedback. Mark active, paused, planned, and completed projects with their corresponding status colors; reserve {colors.error} for failed actions. Pair every colored status mark with a text label, which carries the meaning when color is unavailable. Keep large content surfaces neutral so the projects remain the focus.
+## Typography and color
 
-## Typography
+Use the macOS system sans-serif stack so no font download is required. Product values are derived from the accepted concept; they are not claimed as Notion's proprietary design tokens.
 
-Use the existing system sans-serif stack. The title and description tokens give representative sizes; adapt them fluidly to the available card width, as the current CSS does. Keep status and save labels smaller but plainly legible. Let size, weight, and spacing establish hierarchy before adding another font, icon, or color.
+| Role | Size and weight | Color |
+| --- | --- | --- |
+| Project title | 38px, bold | `#1e232b` |
+| Module heading | 26px, semibold | `#20242b` |
+| Reading text | 17px, regular, 1.6 line height | `#444c58` |
+| Sidebar and controls | 14–16px, regular or medium | `#343840` |
+| Secondary text | 14–16px | `#626a76` |
+| Main canvas | — | `#ffffff` |
+| Sidebar | — | `#fbfbfa` |
+| Hairline border | — | `#e5e7eb` |
 
-## Layout
+Use color to support meaning, not decoration. Keep modules white with subtle borders, small radii, and almost no shadow. Avoid glass, glows, large pills, and heavy visible grids.
 
-On wide screens, use an intentionally asymmetric arrangement of movable cards; on tablet widths, retain a balanced grid; on narrow screens, stack cards in a clear reading order. Use the compact and control spacing tokens for nearby elements; let card padding vary from {spacing.card} to {spacing.card-wide} as room allows. Keep generous space around the grid while giving each card enough room for its real title and description. The toolbar should orient the user without competing with the projects. Preserve usable editing and drag targets across mouse, keyboard, and touch.
+## Interaction
 
-## Elevation & Depth
+- Sidebar toggle hides or shows the sidebar; the right edge can be dragged to adjust width. Store these device preferences in browser storage.
+- Project content and each project's blocks persist through the local API to `data/projects.json`.
+- Blank canvas space pans. Module handles drag and resize in grid increments. Inputs remain editable without starting a pan.
+- Search currently filters project titles locally. Broader content search can be designed later.
+- Controls need visible keyboard focus. Canvas arrow keys pan when the canvas itself is focused. Respect reduced motion preferences.
 
-Make project cards feel like solid sheets slightly above the canvas, with soft shadows and a restrained hint of status color at one edge. Reserve translucency and blur for the toolbar or brief overlays. Background light and motion may add depth, but text and controls must remain clear over them.
+## Reference principles
 
-## Shapes
-
-Use softly rounded cards ({rounded.card}) and a pill-shaped toolbar ({rounded.toolbar}). Keep smaller controls shaped for their function instead of repeating the large card radius everywhere. Rounded forms should support the movable-sheet metaphor, not become decoration on every element.
-
-## Components
-
-- **Project card:** Put the title and description first; keep status and move/resize actions close to the card they affect. Editing should feel like working directly on the sheet.
-- **Status mark:** Pair a colored edge or dot with a readable status name. Use color as a quick cue, not as the sole explanation.
-- **Save feedback:** Show saved, saving, unsaved, and failed states in the toolbar with short text. Make failure unmistakable and keep feedback near the work.
-- **Motion:** Use short transitions to explain hover, focus, drag, resize, and save changes. Respect reduced-motion preferences; avoid animation that delays editing.
-
-## Do's and Don'ts
-
-- Do let real projects provide the visual variety and keep the canvas calm.
-- Do make important controls discoverable on touch as well as on hover or focus.
-- Do preserve clear focus indication and readable text on every surface.
-- Don't spread glass, glow, or colored shadows across every component.
-- Don't copy macOS window controls or use an unrelated design system's branding as the product identity.
-- Don't add decorative illustrations, badges, or motion that distract from reading and editing projects.
+Notion's official help documents sidebar collapse and edge resizing and offers page typography choices. Apple's Human Interface Guidelines emphasize legible text, a clear type hierarchy, few typefaces, and sufficient contrast. This project uses those principles while keeping its own UI and data model.

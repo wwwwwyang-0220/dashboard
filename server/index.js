@@ -4,6 +4,7 @@ import {
   listProjects,
   ProjectStoreError,
   updateProject,
+  updateProjectBlocks,
   updateProjectLayout,
 } from './project-store.js'
 
@@ -24,6 +25,11 @@ app.get('/api/projects', async (_request, response) => {
 
 app.put('/api/projects/:id', async (request, response) => {
   const project = await updateProject(request.params.id, request.body)
+  response.json(project)
+})
+
+app.put('/api/projects/:id/blocks', async (request, response) => {
+  const project = await updateProjectBlocks(request.params.id, request.body?.blocks)
   response.json(project)
 })
 
