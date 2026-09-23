@@ -22,6 +22,7 @@
 ## Git workflow
 
 - After verification, review the staged diff and commit only task-related files; exclude user data, secrets, and unrelated changes.
+- Write a concise English imperative commit subject that names the concrete change. Add a body only when the reason or migration needs explanation; avoid vague titles and unverified claims.
 - When asked to sync, fetch and reconcile remote changes, push the current branch, and verify the remote ref. Never force-push, rewrite published history, or discard work without explicit authorization.
 
 ## Verification and testing
