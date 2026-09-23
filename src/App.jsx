@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Page, Search, SidebarCollapse, SidebarExpand } from 'iconoir-react'
+import { Ring } from 'loading-dev'
 
 import Canvas from './Canvas.jsx'
 import './App.css'
@@ -15,7 +16,10 @@ function readPreference(key, fallback) {
 
 function SaveIndicator({ state }) {
   const label = { saved: 'Saved', saving: 'Saving…', unsaved: 'Unsaved', failed: 'Not saved' }[state]
-  return <span className="save-indicator" data-state={state} aria-live="polite">{label}</span>
+  return <span className="save-indicator" data-state={state} aria-live="polite">
+    {state === 'saving' && <Ring size={14} duration={1400} />}
+    {label}
+  </span>
 }
 
 function ProjectHeader({ project, onSave, onDraftStateChange }) {
@@ -180,7 +184,7 @@ function App() {
                 <span>{project.title}</span>
               </button>
             ))}
-            {filteredProjects.length === 0 && <p className="search-empty">No matching projects</p>}
+            {!loading && projects.length > 0 && filteredProjects.length === 0 && <p className="search-empty">No matching projects</p>}
           </nav>
           <div
             className="sidebar-resizer"
@@ -214,15 +218,15 @@ function App() {
           <button type="button" className="sidebar-toggle" aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'} aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(!sidebarOpen)}>
             {sidebarOpen ? <SidebarCollapse className="ui-icon sidebar-icon" aria-hidden="true" /> : <SidebarExpand className="ui-icon sidebar-icon" aria-hidden="true" />}
           </button>
-          <SaveIndicator state={saveState} />
+          {!loading && selectedProject && <SaveIndicator state={saveState} />}
         </div>
         {error && <div className="app-error" role="alert">{error}</div>}
-        {loading ? <p className="loading-message">Loading projects…</p> : selectedProject ? (
+        {loading ? <p className="loading-message" role="status"><Ring size={18} duration={1400} /> Loading projects…</p> : selectedProject ? (
           <>
             <ProjectHeader key={`header-${selectedProject.id}`} project={selectedProject} onSave={saveMetadata} onDraftStateChange={markDraft} />
             <Canvas key={`canvas-${selectedProject.id}`} project={selectedProject} onSave={saveBlocks} onDraftStateChange={markDraft} />
           </>
-        ) : <p className="loading-message">No projects yet.</p>}
+        ) : !error ? <p className="loading-message">No projects yet.</p> : null}
       </div>
     </div>
   )

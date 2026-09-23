@@ -31,6 +31,10 @@ Use color to support meaning, not decoration. Keep modules white with subtle bor
 
 Use the regular [Iconoir](https://iconoir.com/) React icons for navigation and actions. Keep their 24px viewBox, 1.5 stroke weight, and `currentColor`; display them at 18px by default and 20px for the sidebar toggle. Use one icon per action, with the action's accessible name on its button. Keep icons decorative when adjacent text already names the action. Preserve native checkboxes and text feedback rather than replacing them with icons.
 
+## Loading feedback
+
+Use the [loading.dev Ring](https://loading.dev/spinners/ring) for indeterminate work. Show it at 18px beside “Loading projects…” on initial fetch and at 14px beside “Saving…” in the top strip. Keep both at the same restrained speed and inherit the surrounding text color. Pair motion with text so the pending action is clear; the animation itself is decorative. Do not animate saved, unsaved, failed, or empty states. Respect reduced motion.
+
 ## Interaction
 
 - Sidebar toggle hides or shows the sidebar; the right edge can be dragged to adjust width. Store these device preferences in browser storage.

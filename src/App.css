@@ -55,11 +55,11 @@
 .sidebar-toggle { display: grid; width: 64px; height: 55px; place-items: center; color: #29313d; background: transparent; border: 0; border-right: 1px solid var(--line); }
 .sidebar-toggle:hover { background: #f5f5f4; }
 .sidebar-icon { width: 20px; height: 20px; }
-.save-indicator { padding: 0 28px; color: #737b85; font-size: 13px; white-space: nowrap; }
+.save-indicator { display: inline-flex; align-items: center; gap: 6px; padding: 0 28px; color: #737b85; font-size: 13px; white-space: nowrap; }
 .save-indicator[data-state='failed'] { color: #b23b3b; }
 .save-indicator[data-state='unsaved'] { color: #866329; }
 .app-error { position: absolute; z-index: 40; top: 62px; right: 22px; max-width: 340px; padding: 12px 16px; color: #9c2c32; background: #fff5f5; border: 1px solid #f2c9cc; border-radius: 6px; font-size: 14px; }
-.loading-message { padding: 32px; color: var(--muted); font-size: 14px; }
+.loading-message { display: inline-flex; align-items: center; gap: 8px; margin: 0; padding: 32px; color: var(--muted); font-size: 14px; }
 
 .project-header { flex: none; min-height: 132px; padding: 23px 34px 16px; border-bottom: 1px solid var(--line); }
 .page-title { display: block; width: min(100%, 850px); padding: 0; color: #1e232b; background: transparent; border: 0; outline: 0; font-size: 38px; font-weight: 700; line-height: 1.22; letter-spacing: -0.035em; }

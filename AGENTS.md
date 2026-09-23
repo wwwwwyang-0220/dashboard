@@ -14,7 +14,7 @@
 - Read the code and configuration relevant to the change. Use `package.json` for commands and dependencies; consult `vite.config.js` and `server/` for development routing and persistence.
 - For component boundaries, state, effects, and data flow, use the [React docs](https://react.dev/learn) when the code does not settle the question. Keep state tied to the dashboard's actual behavior.
 - For layout and interactions, use semantic HTML and responsive CSS; consult [MDN](https://developer.mozilla.org/en-US/docs/Learn_web_development) for browser behavior. Check [Baseline](https://web.dev/baseline) before relying on a newer Web feature across Mac and iPad browsers.
-- When visual design work needs external resources, consult `design/resources.md`.
+- When an external design resource is needed, consult `design/resources.md`.
 - For controls, focus, keyboard use, contrast, and feedback, apply the relevant [W3C/WAI guidance](https://www.w3.org/WAI/standards-guidelines/wcag/). Prefer native HTML controls where they fit.
 - For API, file-storage, or dependency behavior, inspect the current code first, then use that tool's official documentation for the specific uncertainty. Consult [OWASP](https://owasp.org/projects/top-ten) when adding authentication or exposing the app beyond its private access path. Read only the guidance relevant to the change.
 - Resolve routine implementation choices and continue through implementation, relevant verification, and fixes until the requested behavior works. Ask when a missing product decision materially changes the result; report a concrete blocker if completion is impossible.
