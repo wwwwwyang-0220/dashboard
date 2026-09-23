@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Page, Search, SidebarCollapse, SidebarExpand } from 'iconoir-react'
 
 import Canvas from './Canvas.jsx'
 import './App.css'
@@ -10,32 +11,6 @@ function readPreference(key, fallback) {
   } catch {
     return fallback
   }
-}
-
-function SidebarIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-      <rect x="2.5" y="3.5" width="19" height="17" rx="2" />
-      <path d="M9 3.5v17" />
-    </svg>
-  )
-}
-
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-      <circle cx="10.8" cy="10.8" r="6.3" /><path d="m15.5 15.5 4.2 4.2" />
-    </svg>
-  )
-}
-
-function PageIcon() {
-  return (
-    <svg className="page-icon" viewBox="0 0 20 22" width="17" height="19" fill="none" stroke="currentColor" strokeWidth="1.55" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 1.8h8l4 4V20H4z" />
-      <path d="M12 1.8v4h4M7 10h6M7 13h6M7 16h4" />
-    </svg>
-  )
 }
 
 function SaveIndicator({ state }) {
@@ -188,7 +163,7 @@ function App() {
       {sidebarOpen && (
         <aside className="sidebar" aria-label="Projects">
           <label className="sidebar-search">
-            <SearchIcon />
+            <Search className="ui-icon" aria-hidden="true" />
             <input type="search" placeholder="Search projects" value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Search projects" />
           </label>
           <div className="sidebar-section-label">Projects</div>
@@ -201,7 +176,7 @@ function App() {
                 aria-current={selectedProject?.id === project.id ? 'page' : undefined}
                 onClick={() => selectProject(project.id)}
               >
-                <PageIcon />
+                <Page className="ui-icon page-icon" aria-hidden="true" />
                 <span>{project.title}</span>
               </button>
             ))}
@@ -237,7 +212,7 @@ function App() {
       <div className="main-column">
         <div className="topbar">
           <button type="button" className="sidebar-toggle" aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'} aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(!sidebarOpen)}>
-            <SidebarIcon />
+            {sidebarOpen ? <SidebarCollapse className="ui-icon sidebar-icon" aria-hidden="true" /> : <SidebarExpand className="ui-icon sidebar-icon" aria-hidden="true" />}
           </button>
           <SaveIndicator state={saveState} />
         </div>

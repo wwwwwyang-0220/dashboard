@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Drag, Minus, MoreHoriz, Plus } from 'iconoir-react'
 
 const GRID = 24
 const INITIAL_PAN = { x: 80, y: 94 }
@@ -133,7 +134,7 @@ export default function Canvas({ project, onSave, onDraftStateChange }) {
     <section className="canvas-shell" aria-label={`${project.title} canvas`}>
       <div className="canvas-actions">
         <button type="button" className="add-block-button" onClick={() => setAddOpen(!addOpen)} aria-expanded={addOpen}>
-          <span aria-hidden="true">＋</span> Add block
+          <Plus className="ui-icon" aria-hidden="true" /> Add block
         </button>
         {addOpen && (
           <div className="add-menu" role="menu" aria-label="Block type">
@@ -174,8 +175,8 @@ export default function Canvas({ project, onSave, onDraftStateChange }) {
                     aria-label={`Move ${block.title}`}
                     title="Drag to move"
                     onPointerDown={(event) => startInteraction(event, 'move', block)}
-                  >⠿</button>
-                  <button type="button" className="block-menu-toggle" aria-label={`Options for ${block.title}`} aria-expanded={menuBlockId === block.id} onClick={() => setMenuBlockId(menuBlockId === block.id ? null : block.id)}>⋯</button>
+                  ><Drag className="ui-icon" aria-hidden="true" /></button>
+                  <button type="button" className="block-menu-toggle" aria-label={`Options for ${block.title}`} aria-expanded={menuBlockId === block.id} onClick={() => setMenuBlockId(menuBlockId === block.id ? null : block.id)}><MoreHoriz className="ui-icon" aria-hidden="true" /></button>
                   {menuBlockId === block.id && (
                     <div className="block-menu">
                       <button type="button" onClick={() => removeBlock(block.id)}>Delete block</button>
@@ -231,7 +232,7 @@ export default function Canvas({ project, onSave, onDraftStateChange }) {
                     onClick={() => updateBlock(block.id, {
                       items: [...block.items, block.type === 'checklist' ? { text: '', done: false } : { text: '' }],
                     }, true)}
-                  >+ Add item</button>
+                  ><Plus className="ui-icon" aria-hidden="true" /> Add item</button>
                 </div>
               )}
               <button
@@ -249,9 +250,9 @@ export default function Canvas({ project, onSave, onDraftStateChange }) {
         <p className="canvas-empty">This project’s canvas is empty. Add a block to start.</p>
       )}
       <div className="canvas-navigation" aria-label="Canvas navigation">
-        <button type="button" onClick={() => setZoom(Math.max(0.5, Math.round((zoom - 0.1) * 10) / 10))} aria-label="Zoom out">−</button>
+        <button type="button" onClick={() => setZoom(Math.max(0.5, Math.round((zoom - 0.1) * 10) / 10))} aria-label="Zoom out"><Minus className="ui-icon" aria-hidden="true" /></button>
         <span>{Math.round(zoom * 100)}%</span>
-        <button type="button" onClick={() => setZoom(Math.min(1.5, Math.round((zoom + 0.1) * 10) / 10))} aria-label="Zoom in">+</button>
+        <button type="button" onClick={() => setZoom(Math.min(1.5, Math.round((zoom + 0.1) * 10) / 10))} aria-label="Zoom in"><Plus className="ui-icon" aria-hidden="true" /></button>
         <span className="control-divider" />
         <button type="button" onClick={() => setPanPosition(INITIAL_PAN)}>Origin</button>
       </div>

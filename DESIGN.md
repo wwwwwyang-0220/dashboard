@@ -27,6 +27,10 @@ Use the macOS system sans-serif stack so no font download is required. Product v
 
 Use color to support meaning, not decoration. Keep modules white with subtle borders, small radii, and almost no shadow. Avoid glass, glows, large pills, and heavy visible grids.
 
+## Icons
+
+Use the regular [Iconoir](https://iconoir.com/) React icons for navigation and actions. Keep their 24px viewBox, 1.5 stroke weight, and `currentColor`; display them at 18px by default and 20px for the sidebar toggle. Use one icon per action, with the action's accessible name on its button. Keep icons decorative when adjacent text already names the action. Preserve native checkboxes and text feedback rather than replacing them with icons.
+
 ## Interaction
 
 - Sidebar toggle hides or shows the sidebar; the right edge can be dragged to adjust width. Store these device preferences in browser storage.
