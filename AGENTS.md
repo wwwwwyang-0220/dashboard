@@ -19,6 +19,11 @@
 - For API, file-storage, or dependency behavior, inspect the current code first, then use that tool's official documentation for the specific uncertainty. Consult [OWASP](https://owasp.org/projects/top-ten) when adding authentication or exposing the app beyond its private access path. Read only the guidance relevant to the change.
 - Resolve routine implementation choices and continue through implementation, relevant verification, and fixes until the requested behavior works. Ask when a missing product decision materially changes the result; report a concrete blocker if completion is impossible.
 
+## Git workflow
+
+- After verification, review the staged diff and commit only task-related files; exclude user data, secrets, and unrelated changes.
+- When asked to sync, fetch and reconcile remote changes, push the current branch, and verify the remote ref. Never force-push, rewrite published history, or discard work without explicit authorization.
+
 ## Verification and testing
 
 - Match verification to the change's impact. Do not write tests for reversible, low-impact changes that merely mirror the implementation. When tests are warranted, keep them meaningful. Run the checks appropriate to the change; once they pass, broaden or repeat only if new changes, failures, or unresolved concerns justify it.
