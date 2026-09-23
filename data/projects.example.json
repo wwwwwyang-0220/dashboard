@@ -1,0 +1,20 @@
+[
+  {
+    "id": "project-one",
+    "title": "Project One",
+    "description": "Add a short description of your project.",
+    "status": "active"
+  },
+  {
+    "id": "project-two",
+    "title": "Project Two",
+    "description": "Track another project here.",
+    "status": "planned"
+  },
+  {
+    "id": "project-three",
+    "title": "Project Three",
+    "description": "Edit this card to make it your own.",
+    "status": "paused"
+  }
+]
