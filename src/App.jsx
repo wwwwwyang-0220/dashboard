@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { Page, Search, SidebarCollapse, SidebarExpand } from 'iconoir-react'
 import { Ring } from 'loading-dev'
 
 import Canvas from './Canvas.jsx'
+import collapseIcon from './assets/sidebar/collapse.svg'
+import collapseMenuIcon from './assets/sidebar/collapse-menu.svg'
+import expandProjectIcon from './assets/sidebar/expand-project.svg'
+import pageIcon from './assets/sidebar/page.svg'
+import searchIcon from './assets/sidebar/search.svg'
+import sidebarIcon from './assets/sidebar/sidebar.svg'
 import './App.css'
 
 function readPreference(key, fallback) {
@@ -72,18 +77,97 @@ function ProjectHeader({ project, onSave, onDraftStateChange }) {
   )
 }
 
+function Sidebar({ mode, menuOpen, onMenuToggle, onModeToggle, projects, selectedProject, search, onSearch, onSelectProject, onResizeStart, onResizeMove, onResizeEnd, onResizeKeyDown, sidebarWidth, sidebarRef, menuToggleRef, loading }) {
+  const filteredProjects = projects.filter((project) => project.title.toLowerCase().includes(search.toLowerCase()))
+
+  return (
+    <aside ref={sidebarRef} className={`sidebar sidebar--${mode}`} aria-label="Projects">
+      {mode === 'pinned' && <div className="sidebar-toolbar">
+        <span>Projects</span>
+        <button type="button" className="sidebar-mode-button" aria-label="Use floating sidebar" onClick={onModeToggle}>
+          <img src={collapseIcon} alt="" />
+        </button>
+      </div>}
+      <button
+        ref={menuToggleRef}
+        type="button"
+        className="sidebar-current"
+        aria-expanded={menuOpen}
+        aria-controls={menuOpen ? 'project-navigation' : undefined}
+        onClick={onMenuToggle}
+      >
+        <span className="project-mark" aria-hidden="true"><span /><span /></span>
+        <span className="sidebar-current-copy">
+          <span className="sidebar-current-title">{selectedProject?.title ?? 'Projects'}</span>
+          <span className="sidebar-current-caption">{selectedProject ? 'Current page' : 'Choose a project'}</span>
+        </span>
+        <img className="sidebar-current-chevron" src={menuOpen ? collapseMenuIcon : expandProjectIcon} alt="" />
+      </button>
+      {menuOpen && <div id="project-navigation" className="sidebar-menu">
+        <div className="sidebar-section-heading">
+          <span>Your projects</span>
+          <span aria-label={`${projects.length} projects`}>{String(projects.length).padStart(2, '0')}</span>
+        </div>
+        <label className="sidebar-search">
+          <img src={searchIcon} alt="" />
+          <input type="search" placeholder="Search projects" value={search} onChange={(event) => onSearch(event.target.value)} aria-label="Search projects" />
+        </label>
+        <nav className="project-list" aria-label="Project pages">
+          {filteredProjects.map((project) => (
+            <button
+              type="button"
+              key={project.id}
+              className={`project-link${selectedProject?.id === project.id ? ' is-current' : ''}`}
+              aria-current={selectedProject?.id === project.id ? 'page' : undefined}
+              onClick={() => onSelectProject(project.id)}
+            >
+              <img src={pageIcon} alt="" />
+              <span className="project-link-copy">
+                <span className="project-link-title">{project.title}</span>
+                <span className="project-link-description">{selectedProject?.id === project.id ? 'Current page' : project.description}</span>
+              </span>
+            </button>
+          ))}
+          {!loading && projects.length > 0 && filteredProjects.length === 0 && <p className="search-empty">No matching projects</p>}
+        </nav>
+      </div>}
+      {mode === 'pinned' && <>
+        <div className="sidebar-footer">Switch projects without leaving the page</div>
+        <div
+          className="sidebar-resizer"
+          role="separator"
+          aria-label="Resize sidebar"
+          aria-orientation="vertical"
+          aria-valuemin={220}
+          aria-valuemax={400}
+          aria-valuenow={sidebarWidth}
+          tabIndex={0}
+          onPointerDown={onResizeStart}
+          onPointerMove={onResizeMove}
+          onPointerUp={onResizeEnd}
+          onPointerCancel={onResizeEnd}
+          onKeyDown={onResizeKeyDown}
+        />
+      </>}
+    </aside>
+  )
+}
+
 function App() {
   const [projects, setProjects] = useState([])
   const [selectedId, setSelectedId] = useState(new URLSearchParams(window.location.search).get('project'))
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saveState, setSaveState] = useState('saved')
-  const [sidebarOpen, setSidebarOpen] = useState(() => readPreference('dashboard.sidebarOpen', true))
-  const [sidebarWidth, setSidebarWidth] = useState(() => readPreference('dashboard.sidebarWidth', 308))
+  const [sidebarMode, setSidebarMode] = useState(() => readPreference('dashboard.sidebarMode', readPreference('dashboard.sidebarOpen', true) ? 'pinned' : 'floating'))
+  const [sidebarMenuOpen, setSidebarMenuOpen] = useState(sidebarMode === 'pinned')
+  const [sidebarWidth, setSidebarWidth] = useState(() => readPreference('dashboard.sidebarWidth', 320))
   const [search, setSearch] = useState('')
   const saveQueue = useRef(Promise.resolve())
   const saveGeneration = useRef(0)
   const resizeStart = useRef(null)
+  const sidebarRef = useRef(null)
+  const menuToggleRef = useRef(null)
 
   function markDraft(state) {
     if (state === 'unsaved' || state === 'failed') saveGeneration.current += 1
@@ -115,14 +199,57 @@ function App() {
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  useEffect(() => { localStorage.setItem('dashboard.sidebarOpen', JSON.stringify(sidebarOpen)) }, [sidebarOpen])
+  useEffect(() => { localStorage.setItem('dashboard.sidebarMode', JSON.stringify(sidebarMode)) }, [sidebarMode])
   useEffect(() => { localStorage.setItem('dashboard.sidebarWidth', JSON.stringify(sidebarWidth)) }, [sidebarWidth])
+
+  useEffect(() => {
+    if (sidebarMode !== 'floating' || !sidebarMenuOpen) return
+    function onPointerDown(event) {
+      if (!sidebarRef.current?.contains(event.target)) setSidebarMenuOpen(false)
+    }
+    function onKeyDown(event) {
+      if (event.key === 'Escape') {
+        setSidebarMenuOpen(false)
+        menuToggleRef.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [sidebarMode, sidebarMenuOpen])
+
+  function toggleSidebarMode() {
+    setSidebarMode((mode) => mode === 'pinned' ? 'floating' : 'pinned')
+    setSidebarMenuOpen(true)
+  }
+
+  function startSidebarResize(event) {
+    event.currentTarget.setPointerCapture(event.pointerId)
+    resizeStart.current = { x: event.clientX, width: sidebarWidth }
+  }
+
+  function moveSidebarResize(event) {
+    if (resizeStart.current) setSidebarWidth(Math.max(220, Math.min(400, resizeStart.current.width + event.clientX - resizeStart.current.x)))
+  }
+
+  function endSidebarResize() { resizeStart.current = null }
+
+  function resizeSidebarWithKeyboard(event) {
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault()
+      setSidebarWidth((width) => Math.max(220, Math.min(400, width + (event.key === 'ArrowLeft' ? -16 : 16))))
+    }
+  }
 
   function selectProject(id) {
     setSelectedId(id)
     const url = new URL(window.location.href)
     url.searchParams.set('project', id)
     window.history.pushState({}, '', url)
+    if (sidebarMode === 'floating') setSidebarMenuOpen(false)
   }
 
   function enqueueSave(request) {
@@ -160,64 +287,30 @@ function App() {
   }
 
   const selectedProject = projects.find((project) => project.id === selectedId) ?? projects[0]
-  const filteredProjects = projects.filter((project) => project.title.toLowerCase().includes(search.toLowerCase()))
-
   return (
-    <div className="app-shell" style={{ '--sidebar-width': sidebarOpen ? `${sidebarWidth}px` : '0px' }}>
-      {sidebarOpen && (
-        <aside className="sidebar" aria-label="Projects">
-          <label className="sidebar-search">
-            <Search className="ui-icon" aria-hidden="true" />
-            <input type="search" placeholder="Search projects" value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Search projects" />
-          </label>
-          <div className="sidebar-section-label">Projects</div>
-          <nav className="project-list" aria-label="Project pages">
-            {filteredProjects.map((project) => (
-              <button
-                type="button"
-                key={project.id}
-                className={`project-link${selectedProject?.id === project.id ? ' is-current' : ''}`}
-                aria-current={selectedProject?.id === project.id ? 'page' : undefined}
-                onClick={() => selectProject(project.id)}
-              >
-                <Page className="ui-icon page-icon" aria-hidden="true" />
-                <span>{project.title}</span>
-              </button>
-            ))}
-            {!loading && projects.length > 0 && filteredProjects.length === 0 && <p className="search-empty">No matching projects</p>}
-          </nav>
-          <div
-            className="sidebar-resizer"
-            role="separator"
-            aria-label="Resize sidebar"
-            aria-orientation="vertical"
-            aria-valuemin={220}
-            aria-valuemax={400}
-            aria-valuenow={sidebarWidth}
-            tabIndex={0}
-            onPointerDown={(event) => {
-              event.currentTarget.setPointerCapture(event.pointerId)
-              resizeStart.current = { x: event.clientX, width: sidebarWidth }
-            }}
-            onPointerMove={(event) => {
-              if (resizeStart.current) setSidebarWidth(Math.max(220, Math.min(400, resizeStart.current.width + event.clientX - resizeStart.current.x)))
-            }}
-            onPointerUp={() => { resizeStart.current = null }}
-            onPointerCancel={() => { resizeStart.current = null }}
-            onKeyDown={(event) => {
-              if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-                event.preventDefault()
-                setSidebarWidth((width) => Math.max(220, Math.min(400, width + (event.key === 'ArrowLeft' ? -16 : 16))))
-              }
-            }}
-          />
-        </aside>
-      )}
+    <div className="app-shell" data-sidebar-mode={sidebarMode} style={{ '--sidebar-width': sidebarMode === 'pinned' ? `${sidebarWidth}px` : '0px' }}>
+      <Sidebar
+        mode={sidebarMode}
+        menuOpen={sidebarMenuOpen}
+        onMenuToggle={() => setSidebarMenuOpen((open) => !open)}
+        onModeToggle={toggleSidebarMode}
+        projects={projects}
+        selectedProject={selectedProject}
+        search={search}
+        onSearch={setSearch}
+        onSelectProject={selectProject}
+        onResizeStart={startSidebarResize}
+        onResizeMove={moveSidebarResize}
+        onResizeEnd={endSidebarResize}
+        onResizeKeyDown={resizeSidebarWithKeyboard}
+        sidebarWidth={sidebarWidth}
+        sidebarRef={sidebarRef}
+        menuToggleRef={menuToggleRef}
+        loading={loading}
+      />
       <div className="main-column">
         <div className="topbar">
-          <button type="button" className="sidebar-toggle" aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'} aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(!sidebarOpen)}>
-            {sidebarOpen ? <SidebarCollapse className="ui-icon sidebar-icon" aria-hidden="true" /> : <SidebarExpand className="ui-icon sidebar-icon" aria-hidden="true" />}
-          </button>
+          {sidebarMode === 'floating' && <button type="button" className="sidebar-toggle" aria-label="Pin sidebar" onClick={toggleSidebarMode}><img src={sidebarIcon} alt="" /></button>}
           {!loading && selectedProject && <SaveIndicator state={saveState} />}
         </div>
         {error && <div className="app-error" role="alert">{error}</div>}
