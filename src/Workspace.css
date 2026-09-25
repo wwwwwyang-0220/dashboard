@@ -208,8 +208,9 @@
 .board-actions { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
 
 .board-body { position: relative; flex: 1; min-height: 0; }
-/* Cards sit half a gap inside the grid, so the padding is 8px short of the page column's edge. */
-.board-scroll { position: absolute; inset: 0; padding: 16px calc(var(--page-inline) - 8px) 48px; overflow-y: auto; }
+/* The heading stays in the page column; the canvas spans the full width so there is room to arrange.
+   Cards sit half a gap inside the grid, so 24px of padding puts them 32px from the edge. */
+.board-scroll { position: absolute; inset: 0; padding: 16px 24px 48px; overflow-y: auto; }
 .board-grid-area { position: relative; min-height: 100%; }
 .board-grid-area.is-arranging {
   background-image: radial-gradient(circle, var(--line-2) 1px, transparent 1.5px);
