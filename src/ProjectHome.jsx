@@ -39,7 +39,7 @@ function BoardList({ project, onOpenBoard, onChange }) {
         <h2 id="boards-heading">Boards</h2>
         <span className="section-count">{project.boards.length}</span>
         <span className="section-spacer" />
-        <button type="button" className="secondary-button" onClick={createBoard}><Plus className="ui-icon" aria-hidden="true" /> New board</button>
+        <button type="button" className="btn btn-quiet" onClick={createBoard}><Plus className="ui-icon" aria-hidden="true" /> New board</button>
       </div>
       {project.boards.length > 0 ? (
         <div className="board-grid">

@@ -44,8 +44,8 @@ function ItemDialog({ item, boardCount, onUpdate, onCommit, onDelete, onClose })
         <div className="item-dialog-top">
           <span className="item-kind">{item.type === 'image' ? 'Image' : 'Note'} · {formatDate(item.createdAt) || 'earlier'}</span>
           <div className="item-dialog-actions">
-            <button type="button" className="text-button danger" onClick={remove}><Trash className="ui-icon" aria-hidden="true" /> Delete</button>
-            <button type="button" className="text-button" onClick={() => dialogRef.current.close()}>Done</button>
+            <button type="button" className="btn btn-quiet is-danger" onClick={remove}><Trash className="ui-icon" aria-hidden="true" /> Delete</button>
+            <button type="button" className="btn btn-primary" onClick={() => dialogRef.current.close()}>Done</button>
           </div>
         </div>
         <input
@@ -148,8 +148,8 @@ export default function Library({ project, onChange, onPersist, onUploadImage, o
         </div>
         <span className="section-spacer" />
         {uploading > 0 && <span className="upload-status" role="status"><Ring size={14} duration={1400} /> Uploading…</span>}
-        <button type="button" className="secondary-button" onClick={createNote}><Plus className="ui-icon" aria-hidden="true" /> New note</button>
-        <button type="button" className="secondary-button" onClick={() => fileInput.current.click()}><MediaImage className="ui-icon" aria-hidden="true" /> Add image</button>
+        <button type="button" className="btn btn-quiet" onClick={createNote}><Plus className="ui-icon" aria-hidden="true" /> New note</button>
+        <button type="button" className="btn btn-quiet" onClick={() => fileInput.current.click()}><MediaImage className="ui-icon" aria-hidden="true" /> Add image</button>
         <input
           ref={fileInput}
           type="file"

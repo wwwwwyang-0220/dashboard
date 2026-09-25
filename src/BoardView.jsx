@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Check, Drag, MoreHoriz, NavArrowLeft, Plus, Search, Xmark } from 'iconoir-react'
+import { Check, DotsGrid3x3, MoreHoriz, NavArrowLeft, Plus, Search, Xmark } from 'iconoir-react'
 
 import {
   alignment, bottomRow, COLUMNS, defaultSize, fits, GAP, MAX_H, MIN_H, MIN_W, nearestFreeSlot, nextFreeSlot, ROW,
@@ -33,7 +33,7 @@ function Menu({ label, children }) {
 
   return (
     <div className="menu" ref={ref}>
-      <button type="button" className="icon-button" aria-label={label} aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button type="button" className="icon-button" aria-label={label} title={label} aria-expanded={open} onClick={() => setOpen(!open)}>
         <MoreHoriz className="ui-icon" aria-hidden="true" />
       </button>
       {open && <div className="menu-popover" onClick={() => setOpen(false)}>{children}</div>}
@@ -53,7 +53,7 @@ function LibraryDrawer({ items, onBoard, onAdd, onNewNote, onDragItem, onClose }
     <aside className="library-drawer" aria-label="Add from library">
       <div className="drawer-header">
         <h2>Add from library</h2>
-        <button type="button" className="icon-button" aria-label="Close library" onClick={onClose}><Xmark className="ui-icon" aria-hidden="true" /></button>
+        <button type="button" className="icon-button" aria-label="Close library" title="Close" onClick={onClose}><Xmark className="ui-icon" aria-hidden="true" /></button>
       </div>
       <label className="drawer-search">
         <Search className="ui-icon" aria-hidden="true" />
@@ -87,7 +87,7 @@ function LibraryDrawer({ items, onBoard, onAdd, onNewNote, onDragItem, onClose }
                   </span>
                   {placed
                     ? <span className="drawer-placed"><Check className="ui-icon" aria-hidden="true" /> On board</span>
-                    : <button type="button" className="icon-button" aria-label={`Add ${itemTitle(item)} to board`} onClick={() => onAdd(item)}><Plus className="ui-icon" aria-hidden="true" /></button>}
+                    : <button type="button" className="icon-button" aria-label={`Add ${itemTitle(item)} to board`} title="Add to board" onClick={() => onAdd(item)}><Plus className="ui-icon" aria-hidden="true" /></button>}
                 </div>
               )
             })}
@@ -277,7 +277,7 @@ export default function BoardView({ project, board, onBack, onChange, onPersist 
             <p className="board-meta">{count} item{count === 1 ? '' : 's'}</p>
           </div>
           <div className="board-actions">
-            <button type="button" className="secondary-button" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(!drawerOpen)}>
+            <button type="button" className="btn btn-primary" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(!drawerOpen)}>
               <Plus className="ui-icon" aria-hidden="true" /> Add from library
             </button>
             <Menu label="Board options">
@@ -336,9 +336,10 @@ export default function BoardView({ project, board, onBack, onChange, onPersist 
                     <button
                       type="button"
                       className="icon-button card-move"
+                      title="Move"
                       aria-label={`Move ${itemTitle(item)}. Use arrow keys to move by one grid step.`}
                       onKeyDown={(event) => nudge(event, 'move', card)}
-                    ><Drag className="ui-icon" aria-hidden="true" /></button>
+                    ><DotsGrid3x3 className="ui-icon" aria-hidden="true" /></button>
                     <Menu label={`Options for ${itemTitle(item)}`}>
                       <button type="button" onClick={() => saveCards(cards.filter((current) => current.itemId !== card.itemId))}>Remove from board</button>
                     </Menu>
@@ -349,6 +350,7 @@ export default function BoardView({ project, board, onBack, onChange, onPersist 
                   <button
                     type="button"
                     className="card-resize"
+                    title="Resize"
                     aria-label={`Resize ${itemTitle(item)}. Use arrow keys to change width and height.`}
                     onPointerDown={(event) => startInteraction(event, 'resize', card)}
                     onPointerMove={moveInteraction}

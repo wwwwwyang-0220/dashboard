@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Computer, HalfMoon, SunLight } from 'iconoir-react'
 import { Ring } from 'loading-dev'
 
 import BoardView from './BoardView.jsx'
@@ -15,6 +16,25 @@ function readPreference(key, fallback) {
   } catch {
     return fallback
   }
+}
+
+const THEMES = [['system', 'System', Computer], ['light', 'Light', SunLight], ['dark', 'Dark', HalfMoon]]
+
+// Draws a single-colour SVG in the current text colour, so it follows the theme.
+function MaskIcon({ src, size = 18 }) {
+  return <span className="mask-icon" style={{ '--icon': `url("${src}")`, width: size, height: size }} aria-hidden="true" />
+}
+
+function ThemeSwitch({ theme, onChange }) {
+  return (
+    <div className="theme-switch" role="radiogroup" aria-label="Appearance">
+      {THEMES.map(([value, label, Icon]) => (
+        <button key={value} type="button" role="radio" aria-checked={theme === value} title={label} aria-label={label} onClick={() => onChange(value)}>
+          <Icon className="ui-icon" aria-hidden="true" />
+        </button>
+      ))}
+    </div>
+  )
 }
 
 function SaveIndicator({ state }) {
@@ -75,14 +95,14 @@ function ProjectHeader({ project, onSave, onDraftStateChange }) {
   )
 }
 
-function Sidebar({ open, projects, selectedProject, search, onSearch, onSelectProject, onResizeStart, onResizeMove, onResizeEnd, onResizeKeyDown, sidebarWidth, loading }) {
+function Sidebar({ open, projects, selectedProject, search, onSearch, onSelectProject, onResizeStart, onResizeMove, onResizeEnd, onResizeKeyDown, sidebarWidth, loading, theme, onTheme }) {
   const filteredProjects = projects.filter((project) => project.title.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <aside id="project-navigation" className="sidebar" aria-label="Projects" inert={!open}>
       <div className="sidebar-content">
         <label className="sidebar-search">
-          <img src={searchIcon} alt="" />
+          <MaskIcon src={searchIcon} />
           <input type="search" placeholder="Search projects" value={search} onChange={(event) => onSearch(event.target.value)} aria-label="Search projects" />
         </label>
         <p className="sidebar-section-heading">Projects</p>
@@ -95,12 +115,15 @@ function Sidebar({ open, projects, selectedProject, search, onSearch, onSelectPr
               aria-current={selectedProject?.id === project.id ? 'page' : undefined}
               onClick={() => onSelectProject(project.id)}
             >
-              <img src={pageIcon} alt="" />
+              <MaskIcon src={pageIcon} />
               <span className="project-link-title">{project.title}</span>
             </button>
           ))}
           {!loading && projects.length > 0 && filteredProjects.length === 0 && <p className="search-empty">No matching projects</p>}
         </nav>
+      </div>
+      <div className="sidebar-footer">
+        <ThemeSwitch theme={theme} onChange={onTheme} />
       </div>
       {open && <div
         className="sidebar-resizer"
@@ -132,6 +155,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(() => readPreference('dashboard.sidebarVisible', readPreference('dashboard.sidebarMode', readPreference('dashboard.sidebarOpen', true) ? 'pinned' : 'floating') === 'pinned'))
   const [sidebarWidth, setSidebarWidth] = useState(() => readPreference('dashboard.sidebarWidth', 242))
   const [search, setSearch] = useState('')
+  const [theme, setTheme] = useState(() => readPreference('dashboard.theme', 'system'))
   const saveQueue = useRef(Promise.resolve())
   const saveGeneration = useRef(0)
   const resizeStart = useRef(null)
@@ -170,6 +194,15 @@ function App() {
 
   useEffect(() => { localStorage.setItem('dashboard.sidebarVisible', JSON.stringify(sidebarOpen)) }, [sidebarOpen])
   useEffect(() => { localStorage.setItem('dashboard.sidebarWidth', JSON.stringify(sidebarWidth)) }, [sidebarWidth])
+  useEffect(() => {
+    if (theme === 'system') delete document.documentElement.dataset.theme
+    else document.documentElement.dataset.theme = theme
+    try {
+      localStorage.setItem('dashboard.theme', JSON.stringify(theme))
+    } catch {
+      // The appearance still applies for this visit.
+    }
+  }, [theme])
 
   function startSidebarResize(event) {
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -280,9 +313,11 @@ function App() {
         onResizeKeyDown={resizeSidebarWithKeyboard}
         sidebarWidth={sidebarWidth}
         loading={loading}
+        theme={theme}
+        onTheme={setTheme}
       />
       <div className="topbar">
-        <button type="button" className="sidebar-toggle" aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'} aria-controls="project-navigation" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen((open) => !open)}><img src={sidebarIcon} alt="" /></button>
+        <button type="button" className="sidebar-toggle" aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'} aria-controls="project-navigation" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen((open) => !open)}><MaskIcon src={sidebarIcon} size={20} /></button>
         {!loading && selectedProject && <SaveIndicator state={saveState} />}
       </div>
       <div className="main-column">
