@@ -1,10 +1,13 @@
 import { Plus } from 'iconoir-react'
 
-import { bottomRow, COLUMNS } from './board-layout.js'
+import { bottomRow, COLUMNS, placeItems } from './board-layout.js'
 import { formatDate } from './items.js'
 import Library from './Library.jsx'
 import TodoList from './TodoList.jsx'
 import './Workspace.css'
+
+// A board opens at full width with the sidebar collapsed; its column width sizes new cards.
+const boardColumnWidth = () => (window.innerWidth - 48) / COLUMNS
 
 function BoardPreview({ board, items }) {
   const rows = Math.max(bottomRow(board.cards), 10)
@@ -26,51 +29,74 @@ function BoardPreview({ board, items }) {
   )
 }
 
-function BoardList({ project, onOpenBoard, onChange }) {
-  function createBoard() {
-    const board = { id: crypto.randomUUID(), name: 'Untitled board', updatedAt: new Date().toISOString(), cards: [] }
-    onChange({ boards: [...project.boards, board] }, ['boards'])
-    onOpenBoard(board.id)
-  }
+// Boards, most recently edited first; the latest one is where work usually continues.
+function BoardList({ project, onOpenBoard, onCreateBoard }) {
+  const boards = [...project.boards].sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
 
   return (
     <section className="boards" aria-labelledby="boards-heading">
       <div className="section-header">
         <h2 id="boards-heading">Boards</h2>
-        <span className="section-count">{project.boards.length}</span>
+        <span className="section-count">{boards.length}</span>
         <span className="section-spacer" />
-        <button type="button" className="btn btn-quiet" onClick={createBoard}><Plus className="ui-icon" aria-hidden="true" /> New board</button>
+        <button type="button" className="btn btn-quiet" onClick={() => onCreateBoard([])}><Plus className="ui-icon" aria-hidden="true" /> New board</button>
       </div>
-      {project.boards.length > 0 ? (
-        <div className="board-grid">
-          {project.boards.map((board) => {
+      {boards.length > 0 ? (
+        <div className="board-list">
+          {boards.map((board, index) => {
             const count = board.cards.filter((card) => project.items.some((item) => item.id === card.itemId)).length
             return (
-              <button key={board.id} type="button" className="board-card" onClick={() => onOpenBoard(board.id)}>
+              <button key={board.id} type="button" className={`board-row${index === 0 ? ' is-recent' : ''}`} onClick={() => onOpenBoard(board.id)}>
                 <BoardPreview board={board} items={project.items} />
-                <span className="board-card-label">
-                  <span className="board-card-name">{board.name}</span>
-                  <span className="board-card-meta">{count} item{count === 1 ? '' : 's'}{board.updatedAt ? ` · edited ${formatDate(board.updatedAt)}` : ''}</span>
+                <span className="board-row-label">
+                  <span className="board-row-name">{board.name}</span>
+                  <span className="board-row-meta">{count} item{count === 1 ? '' : 's'}{board.updatedAt ? ` · edited ${formatDate(board.updatedAt)}` : ''}</span>
                 </span>
+                {index === 0 && <span className="board-row-continue">Continue</span>}
               </button>
             )
           })}
         </div>
       ) : (
-        <p className="section-empty">Boards put notes and images side by side. Create one when you want to compare.</p>
+        <p className="section-empty">Select notes and images in the library to compare them on a board.</p>
       )}
     </section>
   )
 }
 
 export default function ProjectHome({ project, onOpenBoard, onChange, onPersist, onUploadImage, onError }) {
+  const itemsFor = (current, ids) => ids.map((id) => current.items.find((item) => item.id === id)).filter(Boolean)
+
+  function createBoard(itemIds) {
+    const board = { id: crypto.randomUUID(), name: 'Untitled board', updatedAt: new Date().toISOString(), cards: placeItems([], itemsFor(project, itemIds), boardColumnWidth()) }
+    onChange((current) => ({ boards: [...current.boards, board] }), ['boards'])
+    onOpenBoard(board.id)
+  }
+
+  function addToBoard(boardId, itemIds) {
+    onChange((current) => ({
+      boards: current.boards.map((board) => board.id === boardId
+        ? { ...board, cards: placeItems(board.cards, itemsFor(current, itemIds), boardColumnWidth()), updatedAt: new Date().toISOString() }
+        : board),
+    }), ['boards'])
+  }
+
   return (
     <div className="project-home">
-      <TodoList todos={project.todos} onChange={onChange} onPersist={onPersist} />
-      <div className="project-home-main">
-        <BoardList project={project} onOpenBoard={onOpenBoard} onChange={onChange} />
-        <Library project={project} onChange={onChange} onPersist={onPersist} onUploadImage={onUploadImage} onError={onError} />
-      </div>
+      <Library
+        project={project}
+        onChange={onChange}
+        onPersist={onPersist}
+        onUploadImage={onUploadImage}
+        onError={onError}
+        onOpenBoard={onOpenBoard}
+        onCreateBoard={createBoard}
+        onAddToBoard={addToBoard}
+      />
+      <aside className="project-rail" aria-label="To-dos and boards">
+        <TodoList todos={project.todos} onChange={onChange} onPersist={onPersist} />
+        <BoardList project={project} onOpenBoard={onOpenBoard} onCreateBoard={createBoard} />
+      </aside>
     </div>
   )
 }

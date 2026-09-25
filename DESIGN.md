@@ -4,9 +4,9 @@ A calm tool for keeping one project's work in order. It should feel like a well-
 
 ## Product structure
 
-Each project is an organised cabinet, not an open canvas. Its page holds one to-do list, a library of notes and images, and a set of saved boards. A board is where the user lays chosen library items side by side to compare them; it is opened when needed and remembers its arrangement.
+Each project is an organised cabinet, not an open canvas. Its page holds one to-do list, a library of notes and images, and a set of saved boards. The library is where the user spends most of the day, capturing short notes and images as they come, so it is the main surface. To-dos are visited at the start and end of the day, and boards are opened to compare or to continue earlier work; both stay visible in a rail beside the library. A board is where the user lays chosen library items side by side; it remembers its arrangement.
 
-The accepted wireframes are in [Dashboard_V2](https://www.figma.com/design/47imLoFGQTJMkL3Mgy4tKU): 01 project page, 02 board at rest, 03 board with the library drawer while dragging, 04 resize snapping to a neighbour's size. They fix structure and behaviour; the visual values below supersede their colours and type sizes. Dashboard_V1 keeps the sidebar study and the retired free-canvas concept.
+The accepted wireframes are in [Dashboard_V2](https://www.figma.com/design/47imLoFGQTJMkL3Mgy4tKU): 01 project page, 02 board at rest, 03 board with the library drawer while dragging, 04 resize snapping to a neighbour's size; 05 the library-first project page with the hover checkbox, 06 multiple selection, 07 a note in focus, 08 the card context menu, and 09 the library grouped by date. 05–09 supersede 01. They fix structure and behaviour; the visual values below supersede their colours and type sizes. Dashboard_V1 keeps the sidebar study and the retired free-canvas concept.
 
 Design at a 1440 × 1024 CSS-pixel frame, then check 1024px and 820px (iPad portrait).
 
@@ -69,7 +69,7 @@ The macOS system stack (`-apple-system`, SF Pro) with `PingFang SC` for Chinese.
 ## Components
 
 - **Buttons.** Three tiers, 32px tall (40px on touch screens), 8px radius, 13px medium text:
-  - *Primary* — solid `--accent-fill`, white text. At most one per view (on a board: “Add from library”; in a dialog: “Done”).
+  - *Primary* — solid `--accent-fill`, white text. At most one per view (on a board: “Add from library”; while selecting: “Compare on a new board”; in the quick capture: “Save” once there is text).
   - *Quiet* — no background or border; `--text-2`, with `--fill-2` on hover. Section actions such as “New board”, “New note”, “Add image”.
   - *Icon* — 32px square, `--text-3`, with a `title` and accessible name.
   Destructive actions are quiet buttons in `--danger`, confirmed before acting.
@@ -77,7 +77,7 @@ The macOS system stack (`-apple-system`, SF Pro) with `PingFang SC` for Chinese.
 - **Cards.** `--surface`, a `--line-1` edge, 12px radius, `--shadow-1`; on hover the edge becomes `--line-2` with `--shadow-2`.
 - **Checkboxes.** Round, 18px, `--line-2` ring when open; `--accent-fill` with a white tick when done. Completed text is `--text-4` and struck through.
 - **Segmented control.** A `--fill-2` track; the selected option is a `--surface` pill with `--shadow-1`.
-- **Menus and dialogs.** `--surface-raised`, `--shadow-pop`, 10px (menus) or 14px (dialogs) radius. Dialog backdrop is black at 30% (light) or 50% (dark).
+- **Menus and dialogs.** `--surface-raised`, `--shadow-pop`, 10px (menus) or 14px (dialogs) radius. Dialog backdrop is black at 30% (light) or 50% (dark), blurred by 10px so the item in focus stands apart from the page.
 - **Icons.** [Iconoir](https://iconoir.com/) regular, 1.5 stroke, `currentColor`, 18px (16px inside small buttons). Sidebar icons are the exported Figma SVGs drawn through a CSS mask so they take `currentColor` in both themes.
 - **Loading.** The [loading.dev Ring](https://loading.dev/spinners/ring) at 18px beside “Loading projects…” and 14px beside “Saving…”, inheriting text colour. Only pending work animates.
 
@@ -86,11 +86,20 @@ The macOS system stack (`-apple-system`, SF Pro) with `PingFang SC` for Chinese.
 - **Sidebar.** Full height, 242px by default, resizable 220–400px, hidden completely when closed. Opening a board collapses it so the board gets the full width; this does not change the saved preference. Reopening it by hand on a board keeps it open until the user leaves that board, and returning to the project page restores the preference. Search field, then the project list with 36px rows; the current project has a `--fill-2` background and medium weight. The theme switch (System / Light / Dark) sits at the bottom.
 - **Top strip.** A 48px row without a divider: the sidebar toggle stays fixed at the top left and its chevron shows the action — pointing left to collapse while the sidebar is open, right to expand while it is closed; the save status sits at the far right in 12px `--text-3`.
 - **Project heading.** Editable title (page title style) and description (14px `--text-3`), with its top aligned to the sidebar search field at 56px. No divider below; the heading and content share the page surface.
-- **Project page.** Content is left-aligned with a 32px gutter and a 1200px maximum width. Two columns: to-dos (340px) on the left; boards, then the library, on the right, 48px apart. Below 1000px they stack in that order.
-  - To-do: one list per project. Open tasks first; completed tasks collect in a collapsible “Completed” group, newest first.
-  - Boards: cards with a layout preview, name, item count, and last edit. “New board” creates one and opens it.
-  - Library: notes and images in one grid, newest first, filterable by type. A card opens the item in a dialog for editing, viewing, or deletion. Deleting an item also removes it from every board; deleting a board keeps its items.
-- **Board.** The heading becomes a breadcrumb back to the project, the editable board name, the item count, the primary “Add from library” button, and a menu with “Delete board”. The board scrolls vertically only; cards sit on 24 proportional columns and 24px rows with 16px gutters, so it fills the available width and keeps its proportions when the sidebar or window changes.
+- **Project page.** Content is left-aligned with a 32px gutter and a 1200px maximum width. Two columns 32px apart: the library fills the main column; a 300px rail on the right holds the to-dos, then the boards, 40px apart, and stays in view while the library scrolls. Below 1000px the rail moves above the library, with to-dos and boards side by side where they fit.
+  - To-do: one list per project. Open tasks first and wrapping to fit the rail; completed tasks collect in a “Completed” group, collapsed by default, newest first.
+  - Boards: compact rows with a layout preview, name, item count, and last edit, most recently edited first. The first row is raised as a card and says “Continue”. “New board” creates an empty board and opens it.
+  - Library: see below.
+
+## Library interaction
+
+- **Quick capture.** A note field sits at the top of the library at all times. Typing and pressing ⌘ Enter (or “Save”) adds a note without opening anything; notes need no title, and their first line stands in for one. Pasting or dropping an image anywhere on the library adds it.
+- **Grouped by date.** Items are ordered by when they were created, newest first, and never move when edited. Groups are Today, Yesterday, each other day of the past week by weekday, then one group per month. The group heading sticks to the top while its items scroll. Cards in a day group show the time (14:32); cards in a month group show the date (Aug 12). Days without items have no group, and a short group leaves its row part-empty rather than borrowing from the next.
+- **Columns.** Cards fill 1–4 columns (at least 220px each), placed left to right and then down, so each row reads in time order. Notes take their natural height up to eight lines; images keep their aspect ratio between 3:4 and 2:1.
+- **Selecting.** Hovering a card shows an empty round checkbox at its top-right; clicking it selects the card and enters selection mode, where every card shows its checkbox and a click toggles it. “Select” in the header enters the same mode. The quick capture dims, the header shows the count and “Cancel”, and a floating bar at the bottom of the library offers Delete, “Add to board ▾”, and the primary “Compare on a new board”. Escape leaves selection mode.
+- **Context menu.** Right click (long press on touch) opens Open, Select, Add to board ›, and Delete. The board submenu ticks boards that already hold the item and ends with “New board…”. Adding to an existing board stays on the page and shows a brief notice with “Open board”.
+- **Focus.** Clicking a card grows it into a 640px dialog in the middle of the screen (images up to 1000px) over the dimmed, blurred page, and shrinks it back on close. It holds the kind and date, a close button, the title, and the text or image; the footer lists the boards the item is on as links and says “Edits save as you type · Esc to close”. There is no save or delete button: edits save shortly after typing stops, and deleting happens from the library.
+- Deleting asks once, naming how many boards the items will leave. Deleting a board keeps its items.
 
 ## Board interaction
 

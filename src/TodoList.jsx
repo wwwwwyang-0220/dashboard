@@ -3,9 +3,9 @@ import { NavArrowDown, NavArrowRight, Plus, Xmark } from 'iconoir-react'
 
 function readCompletedOpen() {
   try {
-    return localStorage.getItem('dashboard.completedOpen') !== 'false'
+    return localStorage.getItem('dashboard.completedOpen') === 'true'
   } catch {
-    return true
+    return false
   }
 }
 
@@ -18,16 +18,19 @@ function TodoRow({ todo, onUpdate, onCommit, onRemove }) {
         aria-label={`${todo.done ? 'Reopen' : 'Complete'} ${todo.text || 'task'}`}
         onChange={(event) => onUpdate({ done: event.target.checked, doneAt: event.target.checked ? new Date().toISOString() : null }, true)}
       />
-      <input
-        type="text"
+      <textarea
         className="todo-text"
         value={todo.text}
+        rows={1}
         maxLength={500}
         aria-label="Task"
-        onChange={(event) => onUpdate({ text: event.target.value }, false)}
+        onChange={(event) => onUpdate({ text: event.target.value.replace(/\n/g, ' ') }, false)}
         onBlur={() => todo.text.trim() ? onCommit() : onRemove()}
         onKeyDown={(event) => {
-          if (event.key === 'Enter') event.currentTarget.blur()
+          if (event.key === 'Enter') {
+            event.preventDefault()
+            event.currentTarget.blur()
+          }
         }}
       />
       <button type="button" className="todo-remove" aria-label={`Delete ${todo.text || 'task'}`} onClick={onRemove}>

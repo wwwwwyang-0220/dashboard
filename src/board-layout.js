@@ -78,3 +78,13 @@ export function alignment(rect, cards, ignoreId) {
   }
   return { lines: [...lines.values()], sizes }
 }
+
+// Adds `items` to `cards` in reading order, skipping any already on the board.
+export function placeItems(cards, items, columnWidth) {
+  const next = [...cards]
+  for (const item of items) {
+    if (next.some((card) => card.itemId === item.id)) continue
+    next.push({ itemId: item.id, ...nextFreeSlot(next, defaultSize(item, columnWidth)) })
+  }
+  return next
+}

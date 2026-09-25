@@ -18,12 +18,12 @@ Open the URL printed by Vite. The API and frontend run together with `npm run de
 
 The sidebar can be hidden or resized, and its footer switches between system, light, and dark appearance; those device preferences are stored in the browser. The sidebar search filters project titles.
 
-Each project page has a to-do list, a library of notes and images, and saved boards. A board lays chosen library items side by side on a 24-column grid for comparison and keeps that arrangement. Uploaded images are stored in `data/files/`, which is also excluded from Git.
+Each project page centres on a library of notes and images, grouped by date, with a quick-capture field on top; a rail beside it holds the to-do list and saved boards. Selecting library items (hover a card's checkbox, or right-click it) puts them on a board, which lays them side by side on a 24-column grid for comparison and keeps that arrangement. Uploaded images are stored in `data/files/`, which is also excluded from Git.
 
 ## Where to continue
 
 - `src/App.jsx` owns project and board selection (`?project=` and `?board=` URL parameters), the sidebar, the project heading, and the save queue. `changeProject` applies local changes and saves the named fields.
-- `src/ProjectHome.jsx` lays out the project page; `src/TodoList.jsx` and `src/Library.jsx` hold the to-do list and the library with its item dialog.
+- `src/ProjectHome.jsx` lays out the project page and creates or fills boards from library selections. `src/Library.jsx` holds the library: quick capture, date groups, selection, and the card context menu; `src/ItemFocus.jsx` is the dialog that edits one item in focus. `groupByDate` in `src/items.js` decides the groups. `src/TodoList.jsx` holds the to-do list.
 - `src/BoardView.jsx` owns a board: card arrangement, alignment guides, and the library drawer. `src/board-layout.js` holds the grid rules (collision, free-slot search, alignment) as plain functions.
 - `server/index.js` exposes the local API. `server/project-store.js` validates writes and saves atomically to `data/projects.json`. `GET /api/projects` loads projects; `PUT /api/projects/:id` saves the title and description; `PUT /api/projects/:id/todos`, `/items`, and `/boards` replace those lists; `POST /api/projects/:id/images` stores an uploaded image and `GET /api/files/:name` serves it. Removing an image item deletes its file.
 - Projects saved before the library existed load without a manual migration: checklist items become to-dos and text or reference blocks become notes. The old `blocks` and `layouts` fields stay in the JSON file untouched.
