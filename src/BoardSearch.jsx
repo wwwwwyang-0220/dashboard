@@ -3,7 +3,7 @@ import { Check, Search } from 'iconoir-react'
 
 import { imageUrl, itemTitle } from './items.js'
 
-const LIMIT = 8
+const LIMIT = 50
 
 function matches(item, needle) {
   return !needle
@@ -33,6 +33,11 @@ export default function BoardSearch({ projectTitle, items, onBoard, onChoose, on
   useEffect(() => {
     if (!dialogRef.current.open) dialogRef.current.showModal()
   }, [])
+
+  // Keep the highlighted result in view as the arrow keys move past the visible rows.
+  useEffect(() => {
+    dialogRef.current.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' })
+  }, [current, needle])
 
   function choose(item) {
     dialogRef.current.close()
