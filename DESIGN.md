@@ -1,22 +1,25 @@
 # Project workspace visual direction
 
-The desktop project page concept is [project-page-desktop.png](design/concepts/project-page-desktop.png). Use it as the visual reference for this implementation, with the legacy project status shown in that image omitted. The interface is a quiet reading workspace: compact navigation, clear typography, a stable project heading, and an open two-dimensional canvas with grid-snapped modules. iPad adaptation is deferred.
+Each project is an organised cabinet, not an open canvas. Its page holds one to-do list, a library of notes and images, and a set of saved boards. A board is where the user lays chosen library items side by side to compare them; it is opened when needed and remembers its arrangement. The interface stays a quiet reading workspace: compact navigation, clear typography, and a stable project heading.
 
-The sidebar follows the [fixed-toggle Figma study](https://www.figma.com/design/MMaBQyriJEDU5naDco5Efe/Dashboard_V1?node-id=15-2). Project navigation occupies a full-height left column when open and leaves the canvas unobstructed. The project page and grid-snapped canvas retain their own visual treatment.
+The accepted wireframes are in [Dashboard_V2](https://www.figma.com/design/47imLoFGQTJMkL3Mgy4tKU): 01 project page, 02 board at rest, 03 board with the library drawer while dragging, 04 resize snapping to a neighbour's size. The sidebar follows the [fixed-toggle study](https://www.figma.com/design/MMaBQyriJEDU5naDco5Efe/Dashboard_V1?node-id=15-2) in Dashboard_V1, which also keeps the retired free-canvas concept for reference.
 
 ## Design frames
 
-Use a 1440 × 1024 CSS-pixel frame for desktop exploration in [Dashboard_V1](https://www.figma.com/design/MMaBQyriJEDU5naDco5Efe/Dashboard_V1?node-id=0-1). Keep the current UI reference beside a separate editable exploration copy. This frame is a design baseline, not a fixed application size; check narrower viewports and create separate frames when designing responsive behavior.
+Use a 1440 × 1024 CSS-pixel frame for desktop exploration. This frame is a design baseline, not a fixed application size; check narrower viewports and create separate frames when designing responsive behavior.
 
 ## Structure
 
 - The left sidebar starts with project search, followed by the project list. The selected project is indicated in the list; its title and description appear in the project heading.
 - The sidebar occupies a full-height left column when open and collapses completely when closed. Its default width is 242px and its edge remains resizable.
 - Reserve a 56px top utility row without a divider. Its transparent 44px sidebar toggle stays at the same screen position in both states; save status sits at the far right.
-- The project heading is separate from the canvas. It contains the editable project name and description and stays visible while panning.
-- Align the top of the project title with the top of the sidebar search field at 63px from the viewport top.
-- The canvas pans in both axes. Modules snap to a 24px coordinate grid; every fifth unit is indicated by a faint cross. The grid supports arrangement without dominating reading.
-- Add block and zoom/origin controls stay anchored to the canvas viewport. Modules retain their coordinates when the sidebar width changes.
+- The project heading contains the editable project name and description. Align the top of the title with the top of the sidebar search field at 63px from the viewport top.
+- Below the heading, the project page has two columns: the to-do list (360px) on the left; boards, then the library, on the right. Below 1000px they stack in that order.
+- To-do: one list per project. Open tasks first; completed tasks are struck through and collect in a collapsible “Completed” group, newest first.
+- Boards: cards with a small layout preview, name, item count, and last edit. “New board” creates one and opens it.
+- Library: notes and images in one grid, newest first, filterable by type. A card opens the item in a dialog for editing, viewing, or deletion. Deleting an item also removes it from every board; deleting a board keeps its items.
+- A board replaces the project heading with a breadcrumb back to the project, the editable board name, and its actions: “Add from library” and a menu with “Delete board”.
+- Boards scroll vertically only. Cards sit on 24 proportional columns and 24px rows with 16px gutters, so a board fills the available width and keeps its proportions when the sidebar or window changes.
 
 ## Typography and color
 
@@ -25,15 +28,16 @@ Use the macOS system sans-serif stack so no font download is required. Product v
 | Role | Size and weight | Color |
 | --- | --- | --- |
 | Project title | 24px, bold | `#252a31` |
-| Module heading | 26px, semibold | `#20242b` |
+| Section heading | 18px, semibold | `#20242b` |
+| Card title | 14px, medium | `#252a31` |
 | Reading text | 17px, regular, 1.6 line height | `#444c58` |
 | Sidebar and controls | 14–16px, regular or medium | `#343840` |
 | Secondary text | 14–16px | `#626a76` |
-| Main canvas | — | `#ffffff` |
+| Main surface | — | `#ffffff` |
 | Sidebar | — | `#fbfaf8` |
 | Hairline border | — | `#e5e7eb` |
 
-Use color to support meaning, not decoration. Keep canvas modules white with subtle borders, small radii, and almost no shadow. The sidebar uses a quiet surface, compact project rows, and a subtle selected state. Avoid glass, glows, and heavy visible grids.
+Use color to support meaning, not decoration. Keep cards white with subtle borders, 6px radii, and almost no shadow. Arrangement feedback uses a blue dashed landing preview (`#4b79bd`) and pink alignment guides and labels (`#e0457b`); both appear only while arranging. The sidebar uses a quiet surface, compact project rows, and a subtle selected state. Avoid glass, glows, and heavy visible grids.
 
 ## Icons
 
@@ -46,10 +50,14 @@ Use the [loading.dev Ring](https://loading.dev/spinners/ring) for indeterminate 
 ## Interaction
 
 - The fixed sidebar button opens and closes the navigation without moving. The sidebar's right edge can be dragged or adjusted with arrow keys. Store open state and width as device preferences in browser storage.
-- Project content and each project's blocks persist through the local API to `data/projects.json`.
-- Blank canvas space pans. Module handles drag and resize in grid increments. Inputs remain editable without starting a pan.
+- Project content, to-dos, library items, and boards persist through the local API to `data/projects.json`; image files are stored in `data/files/`.
+- A board has no visible grid at rest. While a card is moved, resized, or dragged in from the library, faint dots mark the grid and a dashed preview shows where the card will land.
+- Drag a card by its title bar and resize it from its lower-right corner. Cards snap to the grid and cannot overlap; an invalid position keeps the last valid preview.
+- Alignment works like PowerPoint's smart guides: when a card's edge lines up with another card's, a pink guide appears; when a resize matches a neighbour's width or height, a label says so. Dragging further simply leaves the match. There are no modifier keys to learn.
+- Add library items from the drawer by dragging them onto the board or pressing “+”, which uses the next free space. Images open at their aspect ratio. Notes can be written directly on the board.
+- The move and resize handles are buttons: arrow keys move a card or change its size by one grid step.
 - Search currently filters project titles locally. Broader content search can be designed later.
-- Controls need visible keyboard focus. Canvas arrow keys pan when the canvas itself is focused. Respect reduced motion preferences.
+- Controls need visible keyboard focus. Respect reduced motion preferences. On touch screens, card controls are always visible.
 
 ## Reference principles
 

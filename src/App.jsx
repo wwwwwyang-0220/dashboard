@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Ring } from 'loading-dev'
 
-import Canvas from './Canvas.jsx'
+import BoardView from './BoardView.jsx'
+import ProjectHome from './ProjectHome.jsx'
 import pageIcon from './assets/sidebar/page.svg'
 import searchIcon from './assets/sidebar/search.svg'
 import sidebarIcon from './assets/sidebar/sidebar.svg'
@@ -122,7 +123,9 @@ function Sidebar({ open, projects, selectedProject, search, onSearch, onSelectPr
 
 function App() {
   const [projects, setProjects] = useState([])
-  const [selectedId, setSelectedId] = useState(new URLSearchParams(window.location.search).get('project'))
+  const projectsRef = useRef([])
+  const [selectedId, setSelectedId] = useState(() => new URLSearchParams(window.location.search).get('project'))
+  const [boardId, setBoardId] = useState(() => new URLSearchParams(window.location.search).get('board'))
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saveState, setSaveState] = useState('saved')
@@ -145,7 +148,7 @@ function App() {
       return response.json()
     }).then((loaded) => {
       if (cancelled) return
-      setProjects(loaded)
+      replaceProjects(loaded)
       setSelectedId((current) => loaded.some((project) => project.id === current) ? current : loaded[0]?.id ?? null)
     }).catch((loadError) => {
       if (!cancelled) setError(loadError.message)
@@ -157,7 +160,9 @@ function App() {
 
   useEffect(() => {
     function onPopState() {
-      setSelectedId(new URLSearchParams(window.location.search).get('project'))
+      const params = new URLSearchParams(window.location.search)
+      setSelectedId(params.get('project'))
+      setBoardId(params.get('board'))
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
@@ -184,10 +189,18 @@ function App() {
     }
   }
 
-  function selectProject(id) {
-    setSelectedId(id)
+  function replaceProjects(next) {
+    projectsRef.current = next
+    setProjects(next)
+  }
+
+  function navigate(projectId, nextBoardId) {
+    setSelectedId(projectId)
+    setBoardId(nextBoardId)
     const url = new URL(window.location.href)
-    url.searchParams.set('project', id)
+    url.searchParams.set('project', projectId)
+    if (nextBoardId) url.searchParams.set('board', nextBoardId)
+    else url.searchParams.delete('board')
     window.history.pushState({}, '', url)
   }
 
@@ -206,7 +219,7 @@ function App() {
   }
 
   function saveMetadata(id, values) {
-    setProjects((current) => current.map((project) => project.id === id ? { ...project, ...values } : project))
+    replaceProjects(projectsRef.current.map((project) => project.id === id ? { ...project, ...values } : project))
     enqueueSave(async () => {
       const response = await fetch(`/api/projects/${encodeURIComponent(id)}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values),
@@ -215,17 +228,43 @@ function App() {
     })
   }
 
-  function saveBlocks(id, blocks) {
-    setProjects((current) => current.map((project) => project.id === id ? { ...project, blocks } : project))
+  // Applies local changes to a project's to-dos, items, or boards. `changes` may be a
+  // function of the latest project. Fields named in `persist` are saved now; other
+  // edits stay local until a later persist call.
+  function changeProject(id, changes, persist = []) {
+    replaceProjects(projectsRef.current.map((project) => project.id === id
+      ? { ...project, ...(typeof changes === 'function' ? changes(project) : changes) }
+      : project))
+    if (persist.length === 0) markDraft('unsaved')
+    for (const field of persist) persistField(id, field)
+  }
+
+  function persistField(id, field) {
+    const value = projectsRef.current.find((project) => project.id === id)?.[field]
+    if (value === undefined) return
     enqueueSave(async () => {
-      const response = await fetch(`/api/projects/${encodeURIComponent(id)}/blocks`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ blocks }),
+      const response = await fetch(`/api/projects/${encodeURIComponent(id)}/${field}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [field]: value }),
       })
-      if (!response.ok) throw new Error((await response.json()).error ?? 'Could not save canvas')
+      if (!response.ok) throw new Error((await response.json()).error ?? `Could not save ${field}`)
     })
   }
 
+  async function uploadImage(id, file) {
+    const response = await fetch(`/api/projects/${encodeURIComponent(id)}/images`, {
+      method: 'POST', headers: { 'Content-Type': file.type }, body: file,
+    })
+    const body = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(body.error ?? 'Could not upload image')
+    return body.file
+  }
+
   const selectedProject = projects.find((project) => project.id === selectedId) ?? projects[0]
+  const selectedBoard = selectedProject?.boards.find((board) => board.id === boardId)
+  const projectActions = selectedProject && {
+    onChange: (changes, persist) => changeProject(selectedProject.id, changes, persist),
+    onPersist: (field) => persistField(selectedProject.id, field),
+  }
   return (
     <div className="app-shell" data-sidebar-open={sidebarOpen} style={{ '--sidebar-width': sidebarOpen ? `${sidebarWidth}px` : '0px' }}>
       <Sidebar
@@ -234,7 +273,7 @@ function App() {
         selectedProject={selectedProject}
         search={search}
         onSearch={setSearch}
-        onSelectProject={selectProject}
+        onSelectProject={(id) => navigate(id, null)}
         onResizeStart={startSidebarResize}
         onResizeMove={moveSidebarResize}
         onResizeEnd={endSidebarResize}
@@ -250,8 +289,27 @@ function App() {
         {error && <div className="app-error" role="alert">{error}</div>}
         {loading ? <p className="loading-message" role="status"><Ring size={18} duration={1400} /> Loading projects…</p> : selectedProject ? (
           <>
-            <ProjectHeader key={`header-${selectedProject.id}`} project={selectedProject} onSave={saveMetadata} onDraftStateChange={markDraft} />
-            <Canvas key={`canvas-${selectedProject.id}`} project={selectedProject} onSave={saveBlocks} onDraftStateChange={markDraft} />
+            {selectedBoard ? (
+              <BoardView
+                key={`board-${selectedProject.id}-${selectedBoard.id}`}
+                project={selectedProject}
+                board={selectedBoard}
+                onBack={() => navigate(selectedProject.id, null)}
+                {...projectActions}
+              />
+            ) : (
+              <>
+                <ProjectHeader key={`header-${selectedProject.id}`} project={selectedProject} onSave={saveMetadata} onDraftStateChange={markDraft} />
+                <ProjectHome
+                  key={`home-${selectedProject.id}`}
+                  project={selectedProject}
+                  onOpenBoard={(id) => navigate(selectedProject.id, id)}
+                  onUploadImage={(file) => uploadImage(selectedProject.id, file)}
+                  onError={setError}
+                  {...projectActions}
+                />
+              </>
+            )}
           </>
         ) : !error ? <p className="loading-message">No projects yet.</p> : null}
       </div>

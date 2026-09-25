@@ -17,6 +17,7 @@ dist-ssr
 data/*.json
 !data/projects.example.json
 data/*.tmp
+data/files/
 
 # Editor directories and files
 .vscode/*
