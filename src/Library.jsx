@@ -283,7 +283,7 @@ export default function Library({ project, onChange, onPersist, onUploadImage, o
   useLayoutEffect(() => {
     const observer = new ResizeObserver(([entry]) => {
       const fit = Math.floor((entry.contentRect.width + COLUMN_GAP) / (CARD_MIN + COLUMN_GAP))
-      setColumns(Math.max(1, Math.min(4, fit)))
+      setColumns(Math.max(1, Math.min(5, fit)))
     })
     observer.observe(streamRef.current)
     return () => observer.disconnect()
