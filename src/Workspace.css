@@ -244,11 +244,21 @@
 .board-guide.is-y { height: 1px; }
 .board-snap-label { position: absolute; z-index: 6; padding: 2px 8px; color: #fff; background: var(--accent-fill); border-radius: var(--radius-sm); font-size: 11px; font-weight: 500; line-height: 16px; pointer-events: none; }
 
-.library-drawer { position: absolute; z-index: 10; top: 0; right: 0; bottom: 0; display: flex; flex-direction: column; width: min(360px, 100%); padding: 16px 12px 0; background: var(--surface-raised); border-top-left-radius: var(--radius-lg); box-shadow: var(--shadow-pop); animation: drawer-in 200ms var(--ease); }
+.library-drawer { position: fixed; z-index: 26; inset: 0 0 0 auto; display: flex; flex-direction: column; width: min(var(--drawer-width), 100%); padding: 0 12px; background: var(--bg-sidebar); border-left: 1px solid var(--line-1); animation: drawer-in 200ms var(--ease); }
+/* A full-height panel on the right, like an inspector: it mirrors the sidebar and makes room
+   rather than covering the board. Narrow screens keep it over the board instead. */
+.app-shell { --drawer-width: 320px; }
+.app-shell:has(.library-drawer) .main-column { margin-right: var(--drawer-width); }
+.app-shell:has(.library-drawer) .topbar { right: var(--drawer-width); }
+@media (max-width: 700px) {
+  .app-shell:has(.library-drawer) .main-column { margin-right: 0; }
+  .app-shell:has(.library-drawer) .topbar { right: 0; }
+  .library-drawer { box-shadow: var(--shadow-pop); }
+}
 @keyframes drawer-in { from { opacity: 0; transform: translateX(24px); } }
-.drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 0 8px; }
+.drawer-header { display: flex; flex: none; align-items: center; justify-content: space-between; height: 48px; padding: 0 0 0 8px; }
 .drawer-header h2 { margin: 0; color: var(--text-1); font-size: 16px; font-weight: 600; }
-.drawer-search { display: flex; align-items: center; gap: 8px; height: 34px; margin: 12px 8px 0; padding: 0 10px; color: var(--text-3); background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--radius-md); transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease); }
+.drawer-search { display: flex; align-items: center; gap: 8px; height: 34px; margin: 8px 8px 0; padding: 0 10px; color: var(--text-3); background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--radius-md); transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease); }
 .drawer-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .drawer-search .ui-icon { width: 16px; height: 16px; }
 .drawer-search input { flex: 1; min-width: 0; padding: 0; color: var(--text-1); background: transparent; border: 0; outline: 0; font-size: 13px; }

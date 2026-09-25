@@ -29,7 +29,7 @@ All tokens are CSS custom properties defined in `src/index.css`. Components use 
 | `--bg` | `#f6f5f2` | `#161719` | Main page surface |
 | `--bg-sidebar` | `#efeee9` | `#121315` | Sidebar |
 | `--surface` | `#fdfdfc` | `#1e2023` | Cards, inputs |
-| `--surface-raised` | `#ffffff` | `#26282c` | Menus, drawer, dialogs |
+| `--surface-raised` | `#ffffff` | `#26282c` | Menus, dialogs |
 | `--surface-well` | `#f1f0ec` | `#191a1d` | Board layout previews, thumbnails in lists |
 | `--text-1` | `#1d2126` | `#ebecee` | Titles, primary text |
 | `--text-2` | `#4a5059` | `#b9bdc4` | Body text |
@@ -63,7 +63,7 @@ The macOS system stack (`-apple-system`, SF Pro) with `PingFang SC` for Chinese.
 
 - Spacing uses 4, 8, 12, 16, 24, 32, 48. Page gutters are 32px; section gaps are 40–48px; items within a section are 8–16px apart.
 - Radii: 6px for small controls inside cards, 8px for buttons and inputs, 12px for cards, 14px for dialogs.
-- `--shadow-1` is a barely-there lift for cards at rest; `--shadow-2` is hover; `--shadow-pop` is for menus, the drawer, dialogs, and a card being moved.
+- `--shadow-1` is a barely-there lift for cards at rest; `--shadow-2` is hover; `--shadow-pop` is for menus, dialogs, and a card being moved.
 - Motion: 150ms with `--ease` (a soft ease-out) for hover, press, and state changes; 200ms for the drawer and dialogs. Nothing bounces. `prefers-reduced-motion` turns transitions off.
 
 ## Components
@@ -109,7 +109,7 @@ The macOS system stack (`-apple-system`, SF Pro) with `PingFang SC` for Chinese.
 - At rest there is no visible grid. While a card is moved, resized, or dragged in from the library, faint `--line-2` dots mark the grid and an `--accent-soft` preview with a dashed `--accent` edge shows where the card will land.
 - Drag a card by its title bar; resize it from its lower-right corner. Cards snap to the grid and cannot overlap; an invalid position keeps the last valid preview.
 - Alignment works like PowerPoint's smart guides: when a card's edge lines up with another card's, a 1px `--accent` guide appears; when a resize matches a neighbour's width or height, a small accent label says so. Dragging further simply leaves the match. There are no modifier keys to learn.
-- The library drawer slides in from the right over the board. Drag an item onto the board or press “+” to use the next free space. Images open at their aspect ratio; when a card is resized away from it, the image stays whole and the spare space is the card's own surface, not a separate band. Notes can be written directly on the board.
+- The library drawer is a full-height 320px panel on the right, like an inspector: it mirrors the sidebar (`--bg-sidebar`, a `--line-1` edge, a 48px header row, the search field at 56px) and makes room by narrowing the board rather than covering it. Below 700px it lies over the board instead. Drag an item onto the board or press “+” to use the next free space. Images open at their aspect ratio; when a card is resized away from it, the image stays whole and the spare space is the card's own surface, not a separate band. Notes can be written directly on the board.
 - Card title bars are 36px with no divider. The move and resize handles are buttons: arrow keys move a card or change its size by one grid step.
 
 ## Accessibility
