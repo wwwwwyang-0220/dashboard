@@ -41,7 +41,8 @@ function Menu({ label, children }) {
   )
 }
 
-function LibraryDrawer({ items, onBoard, onAdd, onNewNote, onDragItem, onClose }) {
+// Stays mounted so it can slide in and out; while closed it is inert and off screen.
+function LibraryDrawer({ open, items, onBoard, onAdd, onNewNote, onDragItem, onClose }) {
   const [query, setQuery] = useState('')
   const needle = query.trim().toLowerCase()
   const matches = [...items].reverse().filter((item) => !needle
@@ -50,7 +51,7 @@ function LibraryDrawer({ items, onBoard, onAdd, onNewNote, onDragItem, onClose }
   const groups = [['image', 'Images'], ['note', 'Notes']].map(([type, label]) => [label, matches.filter((item) => item.type === type)])
 
   return (
-    <aside className="library-drawer" aria-label="Add from library">
+    <aside id="library-drawer" className="library-drawer" data-open={open} inert={!open} aria-label="Add from library">
       <div className="drawer-header">
         <h2>Add from library</h2>
         <button type="button" className="icon-button" aria-label="Close library" title="Close" onClick={onClose}><Xmark className="ui-icon" aria-hidden="true" /></button>
@@ -277,8 +278,9 @@ export default function BoardView({ project, board, onBack, onChange, onPersist 
             <p className="board-meta">{count} item{count === 1 ? '' : 's'}</p>
           </div>
           <div className="board-actions">
-            <button type="button" className="btn btn-primary" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(!drawerOpen)}>
-              <Plus className="ui-icon" aria-hidden="true" /> Add from library
+            {/* The same button opens and closes the library, so the user never has to reach for the panel's corner. */}
+            <button type="button" className={`btn ${drawerOpen ? 'btn-quiet is-pressed' : 'btn-primary'}`} aria-expanded={drawerOpen} aria-controls="library-drawer" onClick={() => setDrawerOpen(!drawerOpen)}>
+              {drawerOpen ? <><Xmark className="ui-icon" aria-hidden="true" /> Hide library</> : <><Plus className="ui-icon" aria-hidden="true" /> Add from library</>}
             </button>
             <Menu label="Board options">
               <button type="button" className="danger" onClick={deleteBoard}>Delete board</button>
@@ -377,8 +379,8 @@ export default function BoardView({ project, board, onBack, onChange, onPersist 
             )}
           </div>
         </div>
-        {drawerOpen && (
-          <LibraryDrawer
+        <LibraryDrawer
+            open={drawerOpen}
             items={project.items}
             onBoard={onBoard}
             onAdd={addItem}
@@ -386,7 +388,6 @@ export default function BoardView({ project, board, onBack, onChange, onPersist 
             onDragItem={(item) => { draggedItem.current = item }}
             onClose={() => setDrawerOpen(false)}
           />
-        )}
       </div>
     </div>
   )

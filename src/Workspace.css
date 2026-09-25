@@ -7,6 +7,7 @@
 .btn-quiet:hover { color: var(--text-1); background: var(--fill-2); }
 .btn-quiet:active { background: var(--fill-3); }
 .btn-quiet.is-danger { color: var(--danger); }
+.btn-quiet.is-pressed { color: var(--text-1); background: var(--fill-2); }
 .btn-quiet.is-danger:hover { background: var(--danger-soft); }
 .icon-button { display: inline-grid; width: 32px; height: 32px; flex: none; padding: 0; place-items: center; color: var(--text-3); background: transparent; border: 0; border-radius: var(--radius-md); transition: background-color 150ms var(--ease), color 150ms var(--ease), opacity 150ms var(--ease); }
 .icon-button:hover { color: var(--text-1); background: var(--fill-2); }
@@ -244,18 +245,19 @@
 .board-guide.is-y { height: 1px; }
 .board-snap-label { position: absolute; z-index: 6; padding: 2px 8px; color: #fff; background: var(--accent-fill); border-radius: var(--radius-sm); font-size: 11px; font-weight: 500; line-height: 16px; pointer-events: none; }
 
-.library-drawer { position: fixed; z-index: 26; inset: 0 0 0 auto; display: flex; flex-direction: column; width: min(var(--drawer-width), 100%); padding: 0 12px; background: var(--bg-sidebar); border-left: 1px solid var(--line-1); animation: drawer-in 200ms var(--ease); }
+.library-drawer { position: fixed; z-index: 26; inset: 0 0 0 auto; display: flex; flex-direction: column; width: min(var(--drawer-width), 100%); padding: 0 12px; background: var(--bg-sidebar); border-left: 1px solid var(--line-1); visibility: hidden; transform: translateX(100%); transition: transform 180ms var(--ease), visibility 0s linear 180ms; }
+.library-drawer[data-open='true'] { visibility: visible; transform: none; transition: transform 180ms var(--ease); }
 /* A full-height panel on the right, like an inspector: it mirrors the sidebar and makes room
    rather than covering the board. Narrow screens keep it over the board instead. */
 .app-shell { --drawer-width: 320px; }
-.app-shell:has(.library-drawer) .main-column { margin-right: var(--drawer-width); }
-.app-shell:has(.library-drawer) .topbar { right: var(--drawer-width); }
+.app-shell .main-column, .app-shell .topbar { transition: margin-right 180ms var(--ease), right 180ms var(--ease); }
+.app-shell:has(.library-drawer[data-open='true']) .main-column { margin-right: var(--drawer-width); }
+.app-shell:has(.library-drawer[data-open='true']) .topbar { right: var(--drawer-width); }
 @media (max-width: 700px) {
-  .app-shell:has(.library-drawer) .main-column { margin-right: 0; }
-  .app-shell:has(.library-drawer) .topbar { right: 0; }
+  .app-shell:has(.library-drawer[data-open='true']) .main-column { margin-right: 0; }
+  .app-shell:has(.library-drawer[data-open='true']) .topbar { right: 0; }
   .library-drawer { box-shadow: var(--shadow-pop); }
 }
-@keyframes drawer-in { from { opacity: 0; transform: translateX(24px); } }
 .drawer-header { display: flex; flex: none; align-items: center; justify-content: space-between; height: 48px; padding: 0 0 0 8px; }
 .drawer-header h2 { margin: 0; color: var(--text-1); font-size: 16px; font-weight: 600; }
 .drawer-search { display: flex; align-items: center; gap: 8px; height: 34px; margin: 8px 8px 0; padding: 0 10px; color: var(--text-3); background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--radius-md); transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease); }
