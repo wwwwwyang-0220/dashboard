@@ -33,7 +33,9 @@
 .upload-status { display: inline-flex; align-items: center; gap: 6px; color: var(--text-3); font-size: 13px; }
 
 /* Project home: the library is the main surface; to-dos and boards stay in a rail beside it. */
-.project-home { display: grid; flex: 1; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; align-content: start; align-items: start; min-height: 0; padding: 24px 32px 64px; overflow-y: auto; }
+/* The scroll area spans the window so its scrollbar sits at the edge; the padding centres a
+   1296px content column in it, so the whole page shifts together when the sidebar opens or closes. */
+.project-home { display: grid; flex: 1; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; align-content: start; align-items: start; min-height: 0; padding: 24px var(--page-inline) 64px; overflow-y: auto; }
 .project-rail { position: sticky; top: 0; display: grid; gap: 40px; align-content: start; max-height: calc(100dvh - 176px); overflow-y: auto; overscroll-behavior: contain; }
 @media (max-width: 1000px) {
   .project-home { grid-template-columns: minmax(0, 1fr); gap: 40px; }
@@ -201,7 +203,7 @@
 .breadcrumb .ui-icon { width: 16px; height: 16px; }
 .breadcrumb span[aria-hidden] { color: var(--text-4); }
 /* App.css loads later and caps .project-header, so this needs the extra class to win. */
-.project-header.board-header { max-width: none; }
+.project-header.board-header { padding-inline: 32px; }
 .board-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .board-heading-text { flex: 1; min-width: 0; }
 .board-meta { margin: 6px 0 0; color: var(--text-3); font-size: 14px; line-height: 20px; font-variant-numeric: tabular-nums; }

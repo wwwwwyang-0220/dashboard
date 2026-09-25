@@ -108,7 +108,8 @@
 .search-result-snippet { color: var(--text-2); font-size: 13px; }
 .search-result-meta { color: var(--text-3); font-size: 12px; }
 
-.project-header { position: relative; flex: none; width: 100%; max-width: 1264px; padding: 56px 32px 8px; }
+.main-column { --page-inline: max(32px, (100% - 1296px) / 2); }
+.project-header { position: relative; flex: none; width: 100%; padding: 56px var(--page-inline) 8px; }
 .page-title { display: block; width: min(100%, 850px); padding: 0; color: var(--text-1); background: transparent; border: 0; outline: 0; font-size: 28px; font-weight: 600; line-height: 34px; letter-spacing: -0.02em; }
 .page-title:focus-visible, .project-description:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
 .project-meta { display: flex; align-items: center; min-height: 20px; margin-top: 6px; }

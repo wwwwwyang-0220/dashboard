@@ -52,8 +52,20 @@ function useDismiss(ref, active, onDismiss) {
   }, [ref, active])
 }
 
-function QuickCapture({ dropping, onSave, onImages }) {
+const hasFiles = (event) => event.dataTransfer.types.includes('Files')
+
+// Images come in only when the user puts them here: pasting while the cursor is in
+// the field, or dropping onto it. Adding one lets go of the cursor, so a later
+// paste (after a dialog hands focus back, say) cannot add it again unnoticed.
+function QuickCapture({ onSave, onImages }) {
   const [text, setText] = useState('')
+  const [dropping, setDropping] = useState(false)
+  const fieldRef = useRef(null)
+
+  function addImages(files) {
+    onImages(files)
+    fieldRef.current.blur()
+  }
 
   function save() {
     const content = text.trim()
@@ -63,8 +75,28 @@ function QuickCapture({ dropping, onSave, onImages }) {
   }
 
   return (
-    <div className={`capture${dropping ? ' is-dropping' : ''}`}>
+    <div
+      className={`capture${dropping ? ' is-dropping' : ''}`}
+      onDragOver={(event) => {
+        if (!hasFiles(event)) return
+        event.preventDefault()
+        event.stopPropagation()
+        event.dataTransfer.dropEffect = 'copy'
+        setDropping(true)
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setDropping(false)
+      }}
+      onDrop={(event) => {
+        if (!hasFiles(event)) return
+        event.preventDefault()
+        event.stopPropagation()
+        setDropping(false)
+        addImages(event.dataTransfer.files)
+      }}
+    >
       <textarea
+        ref={fieldRef}
         value={text}
         rows={1}
         maxLength={20000}
@@ -81,7 +113,7 @@ function QuickCapture({ dropping, onSave, onImages }) {
           const images = [...event.clipboardData.files].filter((file) => file.type.startsWith('image/'))
           if (images.length === 0) return
           event.preventDefault()
-          onImages(images)
+          addImages(images)
         }}
       />
       <div className="capture-footer">
@@ -265,7 +297,6 @@ export default function Library({ project, onChange, onPersist, onUploadImage, o
   const [selected, setSelected] = useState(() => new Set())
   const [menu, setMenu] = useState(null)
   const [uploading, setUploading] = useState(0)
-  const [dropping, setDropping] = useState(false)
   const [notice, setNotice] = useState(null)
   const [columns, setColumns] = useState(3)
   const streamRef = useRef(null)
@@ -283,7 +314,7 @@ export default function Library({ project, onChange, onPersist, onUploadImage, o
   useLayoutEffect(() => {
     const observer = new ResizeObserver(([entry]) => {
       const fit = Math.floor((entry.contentRect.width + COLUMN_GAP) / (CARD_MIN + COLUMN_GAP))
-      setColumns(Math.max(1, Math.min(5, fit)))
+      setColumns(Math.max(1, Math.min(4, fit)))
     })
     observer.observe(streamRef.current)
     return () => observer.disconnect()
@@ -366,19 +397,15 @@ export default function Library({ project, onChange, onPersist, onUploadImage, o
     <section
       className="library"
       aria-labelledby="library-heading"
+      // A file dropped anywhere else in the library does nothing, rather than the
+      // browser opening it in place of the dashboard.
       onDragOver={(event) => {
-        if (!event.dataTransfer.types.includes('Files')) return
+        if (!hasFiles(event)) return
         event.preventDefault()
-        setDropping(true)
-      }}
-      onDragLeave={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setDropping(false)
+        event.dataTransfer.dropEffect = 'none'
       }}
       onDrop={(event) => {
-        if (event.dataTransfer.files.length === 0) return
-        event.preventDefault()
-        setDropping(false)
-        addImages(event.dataTransfer.files)
+        if (hasFiles(event)) event.preventDefault()
       }}
     >
       <div className="section-header">
@@ -417,7 +444,7 @@ export default function Library({ project, onChange, onPersist, onUploadImage, o
         />
       </div>
       <div className="library-capture" inert={selecting}>
-        <QuickCapture dropping={dropping} onSave={saveNote} onImages={addImages} />
+        <QuickCapture onSave={saveNote} onImages={addImages} />
       </div>
       <div ref={streamRef} className={`library-stream${selecting ? ' is-selecting' : ''}`}>
         {groups.map((group) => (
