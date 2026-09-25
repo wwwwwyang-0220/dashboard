@@ -156,6 +156,9 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(() => readPreference('dashboard.sidebarVisible', readPreference('dashboard.sidebarMode', readPreference('dashboard.sidebarOpen', true) ? 'pinned' : 'floating') === 'pinned'))
   const [sidebarWidth, setSidebarWidth] = useState(() => readPreference('dashboard.sidebarWidth', 242))
   const [search, setSearch] = useState('')
+  // Opening a board collapses the sidebar for focus without changing the saved
+  // preference. Reopening it by hand keeps it open for the rest of that visit.
+  const [dismissedFocusBoardId, setDismissedFocusBoardId] = useState(null)
   const [theme, setTheme] = useState(() => readPreference('dashboard.theme', 'system'))
   const saveQueue = useRef(Promise.resolve())
   const saveGeneration = useRef(0)
@@ -188,6 +191,7 @@ function App() {
       const params = new URLSearchParams(window.location.search)
       setSelectedId(params.get('project'))
       setBoardId(params.get('board'))
+      setDismissedFocusBoardId(null)
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
@@ -231,6 +235,7 @@ function App() {
   function navigate(projectId, nextBoardId) {
     setSelectedId(projectId)
     setBoardId(nextBoardId)
+    setDismissedFocusBoardId(null)
     const url = new URL(window.location.href)
     url.searchParams.set('project', projectId)
     if (nextBoardId) url.searchParams.set('board', nextBoardId)
@@ -295,14 +300,26 @@ function App() {
 
   const selectedProject = projects.find((project) => project.id === selectedId) ?? projects[0]
   const selectedBoard = selectedProject?.boards.find((board) => board.id === boardId)
+  const boardFocus = Boolean(selectedBoard) && dismissedFocusBoardId !== selectedBoard.id
+  const sidebarShown = sidebarOpen && !boardFocus
+
+  function toggleSidebar() {
+    if (boardFocus) {
+      setDismissedFocusBoardId(selectedBoard.id)
+      setSidebarOpen(true)
+    } else {
+      setSidebarOpen((open) => !open)
+    }
+  }
+
   const projectActions = selectedProject && {
     onChange: (changes, persist) => changeProject(selectedProject.id, changes, persist),
     onPersist: (field) => persistField(selectedProject.id, field),
   }
   return (
-    <div className="app-shell" data-sidebar-open={sidebarOpen} style={{ '--sidebar-width': sidebarOpen ? `${sidebarWidth}px` : '0px' }}>
+    <div className="app-shell" data-sidebar-open={sidebarShown} style={{ '--sidebar-width': sidebarShown ? `${sidebarWidth}px` : '0px' }}>
       <Sidebar
-        open={sidebarOpen}
+        open={sidebarShown}
         projects={projects}
         selectedProject={selectedProject}
         search={search}
@@ -318,7 +335,7 @@ function App() {
         onTheme={setTheme}
       />
       <div className="topbar">
-        <button type="button" className="sidebar-toggle" aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'} title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'} aria-controls="project-navigation" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen((open) => !open)}><MaskIcon src={sidebarOpen ? sidebarCollapseIcon : sidebarExpandIcon} size={20} /></button>
+        <button type="button" className="sidebar-toggle" aria-label={sidebarShown ? 'Collapse sidebar' : 'Expand sidebar'} title={sidebarShown ? 'Collapse sidebar' : 'Expand sidebar'} aria-controls="project-navigation" aria-expanded={sidebarShown} onClick={toggleSidebar}><MaskIcon src={sidebarShown ? sidebarCollapseIcon : sidebarExpandIcon} size={20} /></button>
         {!loading && selectedProject && <SaveIndicator state={saveState} />}
       </div>
       <div className="main-column">

@@ -83,7 +83,7 @@ The macOS system stack (`-apple-system`, SF Pro) with `PingFang SC` for Chinese.
 
 ## Layout
 
-- **Sidebar.** Full height, 242px by default, resizable 220–400px, hidden completely when closed. Search field, then the project list with 36px rows; the current project has a `--fill-2` background and medium weight. The theme switch (System / Light / Dark) sits at the bottom.
+- **Sidebar.** Full height, 242px by default, resizable 220–400px, hidden completely when closed. Opening a board collapses it so the board gets the full width; this does not change the saved preference. Reopening it by hand on a board keeps it open until the user leaves that board, and returning to the project page restores the preference. Search field, then the project list with 36px rows; the current project has a `--fill-2` background and medium weight. The theme switch (System / Light / Dark) sits at the bottom.
 - **Top strip.** A 48px row without a divider: the sidebar toggle stays fixed at the top left and its chevron shows the action — pointing left to collapse while the sidebar is open, right to expand while it is closed; the save status sits at the far right in 12px `--text-3`.
 - **Project heading.** Editable title (page title style) and description (14px `--text-3`), with its top aligned to the sidebar search field at 56px. No divider below; the heading and content share the page surface.
 - **Project page.** Content is left-aligned with a 32px gutter and a 1200px maximum width. Two columns: to-dos (340px) on the left; boards, then the library, on the right, 48px apart. Below 1000px they stack in that order.
