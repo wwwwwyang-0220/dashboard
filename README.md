@@ -16,7 +16,7 @@ Open the URL printed by Vite. The API and frontend run together with `npm run de
 
 `data/projects.json` contains personal dashboard content and is excluded from Git. Copy the example only on a fresh checkout; do not overwrite an existing data file. Changes saved through the dashboard persist across refreshes and clients using this Mac's API.
 
-The sidebar can be hidden or resized, and its footer switches between system, light, and dark appearance; those device preferences are stored in the browser. The sidebar search filters project titles.
+The sidebar can be hidden or resized, and its footer switches between system, light, and dark appearance; those device preferences are stored in the browser. Search opens from the sidebar, the top strip, or ⌘K/Ctrl+K. It finds project titles, note titles and bodies, and image titles across projects using the local API. Image content search is planned in `todo/search.md`.
 
 Each project page centres on a library of notes and images, grouped by date, with a quick-capture field on top; a rail beside it holds the to-do list and saved boards. Selecting library items (hover a card's checkbox, or right-click it) puts them on a board, which lays them side by side on a 24-column grid for comparison and keeps that arrangement. Uploaded images are stored in `data/files/`, which is also excluded from Git.
 
@@ -26,6 +26,7 @@ Each project page centres on a library of notes and images, grouped by date, wit
 - `src/ProjectHome.jsx` lays out the project page and creates or fills boards from library selections. `src/Library.jsx` holds the library: quick capture, date groups, selection, and the card context menu; `src/ItemFocus.jsx` is the dialog that edits one item in focus. `groupByDate` in `src/items.js` decides the groups. `src/TodoList.jsx` holds the to-do list.
 - `src/BoardView.jsx` owns a board: card arrangement, alignment guides, and the library drawer. `src/board-layout.js` holds the grid rules (collision, free-slot search, alignment) as plain functions.
 - `server/index.js` exposes the local API. `server/project-store.js` validates writes and saves atomically to `data/projects.json`. `GET /api/projects` loads projects; `PUT /api/projects/:id` saves the title and description; `PUT /api/projects/:id/todos`, `/items`, and `/boards` replace those lists; `POST /api/projects/:id/images` stores an uploaded image and `GET /api/files/:name` serves it. Removing an image item deletes its file.
+- `GET /api/search?q=` reads the same saved projects and returns ranked project, note, and image matches; `server/search.js` holds the matching and excerpt rules. The index is not separate yet, so new saved content is searchable without rebuilding anything.
 - Projects saved before the library existed load without a manual migration: checklist items become to-dos and text or reference blocks become notes. The old `blocks` and `layouts` fields stay in the JSON file untouched.
 - `DESIGN.md` records the visual direction, the design tokens, and links the Figma wireframes. The tokens live in `src/index.css` with light and dark values; components use them instead of raw colours.
 

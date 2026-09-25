@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Computer, HalfMoon, SunLight } from 'iconoir-react'
+import { Computer, HalfMoon, Search, SunLight } from 'iconoir-react'
 import { Ring } from 'loading-dev'
 
 import BoardView from './BoardView.jsx'
 import ProjectHome from './ProjectHome.jsx'
+import SearchDialog from './SearchDialog.jsx'
 import pageIcon from './assets/sidebar/page.svg'
 import searchIcon from './assets/sidebar/search.svg'
 import sidebarCollapseIcon from './assets/sidebar/sidebar-collapse.svg'
@@ -96,19 +97,17 @@ function ProjectHeader({ project, onSave, onDraftStateChange }) {
   )
 }
 
-function Sidebar({ open, projects, selectedProject, search, onSearch, onSelectProject, onResizeStart, onResizeMove, onResizeEnd, onResizeKeyDown, sidebarWidth, loading, theme, onTheme }) {
-  const filteredProjects = projects.filter((project) => project.title.toLowerCase().includes(search.toLowerCase()))
-
+function Sidebar({ open, projects, selectedProject, onOpenSearch, onSelectProject, onResizeStart, onResizeMove, onResizeEnd, onResizeKeyDown, sidebarWidth, theme, onTheme }) {
   return (
     <aside id="project-navigation" className="sidebar" aria-label="Projects" inert={!open}>
       <div className="sidebar-content">
-        <label className="sidebar-search">
+        <button type="button" className="sidebar-search" onClick={onOpenSearch} aria-label="Search projects, notes, and images">
           <MaskIcon src={searchIcon} />
-          <input type="search" placeholder="Search projects" value={search} onChange={(event) => onSearch(event.target.value)} aria-label="Search projects" />
-        </label>
+          <span>Search projects, notes, images</span>
+        </button>
         <p className="sidebar-section-heading">Projects</p>
         <nav className="project-list" aria-label="Project pages">
-          {filteredProjects.map((project) => (
+          {projects.map((project) => (
             <button
               type="button"
               key={project.id}
@@ -120,7 +119,6 @@ function Sidebar({ open, projects, selectedProject, search, onSearch, onSelectPr
               <span className="project-link-title">{project.title}</span>
             </button>
           ))}
-          {!loading && projects.length > 0 && filteredProjects.length === 0 && <p className="search-empty">No matching projects</p>}
         </nav>
       </div>
       <div className="sidebar-footer">
@@ -155,7 +153,8 @@ function App() {
   const [saveState, setSaveState] = useState('saved')
   const [sidebarOpen, setSidebarOpen] = useState(() => readPreference('dashboard.sidebarVisible', readPreference('dashboard.sidebarMode', readPreference('dashboard.sidebarOpen', true) ? 'pinned' : 'floating') === 'pinned'))
   const [sidebarWidth, setSidebarWidth] = useState(() => readPreference('dashboard.sidebarWidth', 242))
-  const [search, setSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchTarget, setSearchTarget] = useState(null)
   // Opening a board collapses the sidebar for focus without changing the saved
   // preference. Reopening it by hand keeps it open for the rest of that visit.
   const [dismissedFocusBoardId, setDismissedFocusBoardId] = useState(null)
@@ -191,10 +190,22 @@ function App() {
       const params = new URLSearchParams(window.location.search)
       setSelectedId(params.get('project'))
       setBoardId(params.get('board'))
+      setSearchTarget(null)
       setDismissedFocusBoardId(null)
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
+  useEffect(() => {
+    function onSearchShortcut(event) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', onSearchShortcut)
+    return () => window.removeEventListener('keydown', onSearchShortcut)
   }, [])
 
   useEffect(() => { localStorage.setItem('dashboard.sidebarVisible', JSON.stringify(sidebarOpen)) }, [sidebarOpen])
@@ -235,12 +246,43 @@ function App() {
   function navigate(projectId, nextBoardId) {
     setSelectedId(projectId)
     setBoardId(nextBoardId)
+    setSearchTarget(null)
     setDismissedFocusBoardId(null)
     const url = new URL(window.location.href)
     url.searchParams.set('project', projectId)
     if (nextBoardId) url.searchParams.set('board', nextBoardId)
     else url.searchParams.delete('board')
     window.history.pushState({}, '', url)
+  }
+
+  async function openSearchResult(result) {
+    setSearchOpen(false)
+    const localProject = projectsRef.current.find((project) => project.id === result.projectId)
+    const hasLocalItem = result.type === 'project' || localProject?.items.some((item) => item.id === result.id)
+    if (!localProject || !hasLocalItem) {
+      const generation = saveGeneration.current
+      await saveQueue.current
+      try {
+        const response = await fetch('/api/projects')
+        if (!response.ok) throw new Error('Could not refresh projects')
+        const refreshed = (await response.json()).find((project) => project.id === result.projectId)
+        if (!refreshed || (result.type !== 'project' && !refreshed.items.some((item) => item.id === result.id))) {
+          throw new Error('This search result is no longer available')
+        }
+        if (generation !== saveGeneration.current || (localProject?.id === selectedId && (saveState === 'unsaved' || saveState === 'failed'))) {
+          throw new Error('Save your current edits before opening this result')
+        }
+        replaceProjects(localProject
+          ? projectsRef.current.map((project) => project.id === result.projectId ? refreshed : project)
+          : [...projectsRef.current, refreshed])
+      } catch (searchError) {
+        setError(searchError.message)
+        return
+      }
+    }
+    setError('')
+    navigate(result.projectId, null)
+    if (result.type !== 'project') setSearchTarget({ projectId: result.projectId, itemId: result.id })
   }
 
   function enqueueSave(request) {
@@ -322,20 +364,19 @@ function App() {
         open={sidebarShown}
         projects={projects}
         selectedProject={selectedProject}
-        search={search}
-        onSearch={setSearch}
+        onOpenSearch={() => setSearchOpen(true)}
         onSelectProject={(id) => navigate(id, null)}
         onResizeStart={startSidebarResize}
         onResizeMove={moveSidebarResize}
         onResizeEnd={endSidebarResize}
         onResizeKeyDown={resizeSidebarWithKeyboard}
         sidebarWidth={sidebarWidth}
-        loading={loading}
         theme={theme}
         onTheme={setTheme}
       />
       <div className="topbar">
         <button type="button" className="sidebar-toggle" aria-label={sidebarShown ? 'Collapse sidebar' : 'Expand sidebar'} title={sidebarShown ? 'Collapse sidebar' : 'Expand sidebar'} aria-controls="project-navigation" aria-expanded={sidebarShown} onClick={toggleSidebar}><MaskIcon src={sidebarShown ? sidebarCollapseIcon : sidebarExpandIcon} size={20} /></button>
+        <button type="button" className="topbar-search" aria-label="Search projects, notes, and images" title="Search" onClick={() => setSearchOpen(true)}><Search className="ui-icon" aria-hidden="true" /></button>
         {!loading && selectedProject && <SaveIndicator state={saveState} />}
       </div>
       <div className="main-column">
@@ -359,6 +400,8 @@ function App() {
                   onOpenBoard={(id) => navigate(selectedProject.id, id)}
                   onUploadImage={(file) => uploadImage(selectedProject.id, file)}
                   onError={setError}
+                  searchTarget={searchTarget?.projectId === selectedProject.id ? searchTarget : null}
+                  onClearSearchTarget={() => setSearchTarget(null)}
                   {...projectActions}
                 />
               </>
@@ -366,6 +409,7 @@ function App() {
           </>
         ) : !error ? <p className="loading-message">No projects yet.</p> : null}
       </div>
+      {searchOpen && <SearchDialog onClose={() => setSearchOpen(false)} onSelect={openSearchResult} />}
     </div>
   )
 }

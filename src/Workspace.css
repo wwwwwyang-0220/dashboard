@@ -195,7 +195,7 @@
 /* Board */
 .board-view { display: flex; flex: 1; flex-direction: column; min-height: 0; }
 .breadcrumb { position: absolute; top: 14px; left: 32px; display: flex; align-items: center; gap: 4px; color: var(--text-3); font-size: 13px; }
-.app-shell[data-sidebar-open='false'] .breadcrumb { left: 64px; }
+.app-shell[data-sidebar-open='false'] .breadcrumb { left: 96px; }
 .breadcrumb button { display: inline-flex; align-items: center; gap: 2px; min-height: 24px; padding: 0 6px 0 2px; color: inherit; background: transparent; border: 0; border-radius: var(--radius-sm); transition: color 150ms var(--ease), background-color 150ms var(--ease); }
 .breadcrumb button:hover { color: var(--text-1); background: var(--fill-2); }
 .breadcrumb .ui-icon { width: 16px; height: 16px; }

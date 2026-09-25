@@ -64,7 +64,7 @@ function BoardList({ project, onOpenBoard, onCreateBoard }) {
   )
 }
 
-export default function ProjectHome({ project, onOpenBoard, onChange, onPersist, onUploadImage, onError }) {
+export default function ProjectHome({ project, onOpenBoard, onChange, onPersist, onUploadImage, onError, searchTarget, onClearSearchTarget }) {
   const itemsFor = (current, ids) => ids.map((id) => current.items.find((item) => item.id === id)).filter(Boolean)
 
   function createBoard(itemIds) {
@@ -92,6 +92,8 @@ export default function ProjectHome({ project, onOpenBoard, onChange, onPersist,
         onOpenBoard={onOpenBoard}
         onCreateBoard={createBoard}
         onAddToBoard={addToBoard}
+        searchTarget={searchTarget}
+        onClearSearchTarget={onClearSearchTarget}
       />
       <aside className="project-rail" aria-label="To-dos and boards">
         <TodoList todos={project.todos} onChange={onChange} onPersist={onPersist} />

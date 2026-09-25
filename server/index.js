@@ -13,6 +13,7 @@ import {
   updateProjectItems,
   updateProjectTodos,
 } from './project-store.js'
+import { searchProjects } from './search.js'
 
 const app = express()
 const host = '127.0.0.1'
@@ -27,6 +28,15 @@ app.get('/api/health', (_request, response) => {
 
 app.get('/api/projects', async (_request, response) => {
   response.json(await listProjects())
+})
+
+app.get('/api/search', async (request, response) => {
+  const query = request.query.q
+  if (typeof query !== 'string' || query.length > 120) {
+    response.status(400).json({ error: 'Search query must be at most 120 characters' })
+    return
+  }
+  response.json(searchProjects(await listProjects(), query))
 })
 
 app.put('/api/projects/:id', async (request, response) => {

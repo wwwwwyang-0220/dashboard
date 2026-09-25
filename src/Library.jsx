@@ -258,7 +258,7 @@ function SelectionBar({ count, boards, onDelete, onAddToBoard, onCompare }) {
   )
 }
 
-export default function Library({ project, onChange, onPersist, onUploadImage, onError, onOpenBoard, onCreateBoard, onAddToBoard }) {
+export default function Library({ project, onChange, onPersist, onUploadImage, onError, onOpenBoard, onCreateBoard, onAddToBoard, searchTarget, onClearSearchTarget }) {
   const [filter, setFilter] = useState('all')
   const [focusId, setFocusId] = useState(null)
   const [selectMode, setSelectMode] = useState(false)
@@ -274,10 +274,10 @@ export default function Library({ project, onChange, onPersist, onUploadImage, o
   const itemIds = new Set(project.items.map((item) => item.id))
   const selectedIds = [...selected].filter((id) => itemIds.has(id))
   const selecting = selectMode || selectedIds.length > 0
-  const shown = filter === 'all' ? project.items : project.items.filter((item) => item.type === filter)
+  const shown = filter === 'all' || searchTarget ? project.items : project.items.filter((item) => item.type === filter)
   const groups = groupByDate(shown)
   const count = (type) => type === 'all' ? project.items.length : project.items.filter((item) => item.type === type).length
-  const focusItem = project.items.find((item) => item.id === focusId)
+  const focusItem = project.items.find((item) => item.id === (searchTarget?.itemId ?? focusId))
   const menuItem = project.items.find((item) => item.id === menu?.itemId)
 
   useLayoutEffect(() => {
@@ -307,6 +307,11 @@ export default function Library({ project, onChange, onPersist, onUploadImage, o
   function clearSelection() {
     setSelected(new Set())
     setSelectMode(false)
+  }
+
+  function openItem(id) {
+    onClearSearchTarget()
+    setFocusId(id)
   }
 
   function toggle(id) {
@@ -431,7 +436,7 @@ export default function Library({ project, onChange, onPersist, onUploadImage, o
                       when={when}
                       selecting={selecting}
                       selected={selected.has(item.id)}
-                      onOpen={() => setFocusId(item.id)}
+                      onOpen={() => openItem(item.id)}
                       onToggle={() => toggle(item.id)}
                       onMenu={(at) => setMenu({ itemId: item.id, at })}
                     />
@@ -466,7 +471,7 @@ export default function Library({ project, onChange, onPersist, onUploadImage, o
           at={menu.at}
           item={menuItem}
           boards={project.boards}
-          onOpen={() => setFocusId(menuItem.id)}
+          onOpen={() => openItem(menuItem.id)}
           onSelect={() => toggle(menuItem.id)}
           onAddToBoard={(boardId) => addToBoard(boardId, [menuItem.id])}
           onNewBoard={() => onCreateBoard([menuItem.id])}
@@ -483,7 +488,10 @@ export default function Library({ project, onChange, onPersist, onUploadImage, o
           onUpdate={(changes) => updateItem(focusItem.id, changes)}
           onCommit={() => onPersist('items')}
           onOpenBoard={onOpenBoard}
-          onClose={() => setFocusId(null)}
+          onClose={() => {
+            setFocusId(null)
+            onClearSearchTarget()
+          }}
         />
       )}
     </section>
