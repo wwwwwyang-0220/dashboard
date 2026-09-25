@@ -39,11 +39,24 @@ function ThemeSwitch({ theme, onChange }) {
   )
 }
 
+// Saving is automatic, so the status stays out of sight unless it needs attention:
+// a save that takes longer than a second, or one that failed.
 function SaveIndicator({ state }) {
-  const label = { saved: 'Saved', saving: 'Saving…', unsaved: 'Unsaved', failed: 'Not saved' }[state]
+  const [slow, setSlow] = useState(false)
+
+  useEffect(() => {
+    if (state !== 'saving') return
+    const timer = setTimeout(() => setSlow(true), 1000)
+    return () => {
+      clearTimeout(timer)
+      setSlow(false)
+    }
+  }, [state])
+
+  const visible = state === 'failed' || (state === 'saving' && slow)
   return <span className="save-indicator" data-state={state} aria-live="polite">
-    {state === 'saving' && <Ring size={14} duration={1400} />}
-    {label}
+    {visible && state === 'saving' && <><Ring size={14} duration={1400} /> Saving…</>}
+    {visible && state === 'failed' && 'Not saved'}
   </span>
 }
 
@@ -153,7 +166,9 @@ function App() {
   const [saveState, setSaveState] = useState('saved')
   const [sidebarOpen, setSidebarOpen] = useState(() => readPreference('dashboard.sidebarVisible', readPreference('dashboard.sidebarMode', readPreference('dashboard.sidebarOpen', true) ? 'pinned' : 'floating') === 'pinned'))
   const [sidebarWidth, setSidebarWidth] = useState(() => readPreference('dashboard.sidebarWidth', 242))
-  const [searchOpen, setSearchOpen] = useState(false)
+  // 'global' searches every project; 'board' finds library items to add to the open board.
+  const [search, setSearch] = useState(null)
+  const boardOpenRef = useRef(false)
   const [searchTarget, setSearchTarget] = useState(null)
   // Opening a board collapses the sidebar for focus without changing the saved
   // preference. Reopening it by hand keeps it open for the rest of that visit.
@@ -201,7 +216,7 @@ function App() {
     function onSearchShortcut(event) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
-        setSearchOpen(true)
+        setSearch(boardOpenRef.current ? 'board' : 'global')
       }
     }
     window.addEventListener('keydown', onSearchShortcut)
@@ -256,7 +271,7 @@ function App() {
   }
 
   async function openSearchResult(result) {
-    setSearchOpen(false)
+    setSearch(null)
     const localProject = projectsRef.current.find((project) => project.id === result.projectId)
     const hasLocalItem = result.type === 'project' || localProject?.items.some((item) => item.id === result.id)
     if (!localProject || !hasLocalItem) {
@@ -343,6 +358,10 @@ function App() {
   const selectedProject = projects.find((project) => project.id === selectedId) ?? projects[0]
   const selectedBoard = selectedProject?.boards.find((board) => board.id === boardId)
   const boardFocus = Boolean(selectedBoard) && dismissedFocusBoardId !== selectedBoard.id
+
+  useEffect(() => {
+    boardOpenRef.current = Boolean(selectedBoard)
+  })
   const sidebarShown = sidebarOpen && !boardFocus
 
   function toggleSidebar() {
@@ -364,7 +383,7 @@ function App() {
         open={sidebarShown}
         projects={projects}
         selectedProject={selectedProject}
-        onOpenSearch={() => setSearchOpen(true)}
+        onOpenSearch={() => setSearch('global')}
         onSelectProject={(id) => navigate(id, null)}
         onResizeStart={startSidebarResize}
         onResizeMove={moveSidebarResize}
@@ -376,7 +395,7 @@ function App() {
       />
       <div className="topbar">
         <button type="button" className="sidebar-toggle" aria-label={sidebarShown ? 'Collapse sidebar' : 'Expand sidebar'} title={sidebarShown ? 'Collapse sidebar' : 'Expand sidebar'} aria-controls="project-navigation" aria-expanded={sidebarShown} onClick={toggleSidebar}><MaskIcon src={sidebarShown ? sidebarCollapseIcon : sidebarExpandIcon} size={20} /></button>
-        <button type="button" className="topbar-search" aria-label="Search projects, notes, and images" title="Search" onClick={() => setSearchOpen(true)}><Search className="ui-icon" aria-hidden="true" /></button>
+        <button type="button" className="topbar-search" aria-label={selectedBoard ? 'Find a note or image to add to this board' : 'Search projects, notes, and images'} title={selectedBoard ? 'Add to board (⌘K)' : 'Search (⌘K)'} onClick={() => setSearch(selectedBoard ? 'board' : 'global')}><Search className="ui-icon" aria-hidden="true" /></button>
         {!loading && selectedProject && <SaveIndicator state={saveState} />}
       </div>
       <div className="main-column">
@@ -389,6 +408,8 @@ function App() {
                 project={selectedProject}
                 board={selectedBoard}
                 onBack={() => navigate(selectedProject.id, null)}
+                searching={search === 'board'}
+                onCloseSearch={() => setSearch(null)}
                 {...projectActions}
               />
             ) : (
@@ -409,7 +430,7 @@ function App() {
           </>
         ) : !error ? <p className="loading-message">No projects yet.</p> : null}
       </div>
-      {searchOpen && <SearchDialog onClose={() => setSearchOpen(false)} onSelect={openSearchResult} />}
+      {search === 'global' && <SearchDialog onClose={() => setSearch(null)} onSelect={openSearchResult} />}
     </div>
   )
 }

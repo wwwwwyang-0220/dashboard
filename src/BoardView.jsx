@@ -1,10 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Check, DotsGrid3x3, MoreHoriz, NavArrowLeft, Plus, Search, Xmark } from 'iconoir-react'
+import { Check, DotsGrid3x3, MoreHoriz, NavArrowLeft, Plus, Search } from 'iconoir-react'
 
 import {
   alignment, bottomRow, COLUMNS, defaultSize, fits, GAP, MAX_H, MIN_H, MIN_W, nearestFreeSlot, nextFreeSlot, ROW,
 } from './board-layout.js'
+import BoardSearch from './BoardSearch.jsx'
 import { imageUrl, itemTitle, newNote } from './items.js'
+import panelCloseIcon from './assets/sidebar/sidebar-collapse.svg'
+import panelOpenIcon from './assets/sidebar/sidebar-expand.svg'
 import './Workspace.css'
 
 const DRAG_TYPE = 'application/x-dashboard-item'
@@ -42,7 +45,7 @@ function Menu({ label, children }) {
 }
 
 // Stays mounted so it can slide in and out; while closed it is inert and off screen.
-function LibraryDrawer({ open, items, onBoard, onAdd, onNewNote, onDragItem, onClose }) {
+function LibraryDrawer({ open, items, onBoard, onAdd, onNewNote, onDragItem }) {
   const [query, setQuery] = useState('')
   const needle = query.trim().toLowerCase()
   const matches = [...items].reverse().filter((item) => !needle
@@ -51,10 +54,10 @@ function LibraryDrawer({ open, items, onBoard, onAdd, onNewNote, onDragItem, onC
   const groups = [['image', 'Images'], ['note', 'Notes']].map(([type, label]) => [label, matches.filter((item) => item.type === type)])
 
   return (
-    <aside id="library-drawer" className="library-drawer" data-open={open} inert={!open} aria-label="Add from library">
+    <aside id="library-drawer" className="library-drawer" data-open={open} inert={!open} aria-label="Library">
+      {/* The panel toggle sits over the right end of this row, in the same place whether the panel is open or closed. */}
       <div className="drawer-header">
-        <h2>Add from library</h2>
-        <button type="button" className="icon-button" aria-label="Close library" title="Close" onClick={onClose}><Xmark className="ui-icon" aria-hidden="true" /></button>
+        <h2>Library</h2>
       </div>
       <label className="drawer-search">
         <Search className="ui-icon" aria-hidden="true" />
@@ -118,13 +121,15 @@ function CardBody({ item, onEditNote, onCommitNote }) {
   )
 }
 
-export default function BoardView({ project, board, onBack, onChange, onPersist }) {
+export default function BoardView({ project, board, onBack, onChange, onPersist, searching, onCloseSearch }) {
   const [name, setName] = useState(board.name)
   const [drawerOpen, setDrawerOpen] = useState(board.cards.length === 0)
   const [width, setWidth] = useState(0)
   const [interaction, setInteraction] = useState(null)
   const [dropTarget, setDropTarget] = useState(null)
+  const [flashId, setFlashId] = useState(null)
   const gridRef = useRef(null)
+  const scrollRef = useRef(null)
   const draggedItem = useRef(null)
 
   const itemsById = new Map(project.items.map((item) => [item.id, item]))
@@ -153,6 +158,32 @@ export default function BoardView({ project, board, onBack, onChange, onPersist 
 
   function addItem(item) {
     placeCard(item, nextFreeSlot(cards, defaultSize(item, columnWidth)))
+  }
+
+  useEffect(() => {
+    if (!flashId) return
+    const timer = setTimeout(() => setFlashId(null), 1600)
+    return () => clearTimeout(timer)
+  }, [flashId])
+
+  // Shows a card and outlines it for a moment so it is easy to spot.
+  function reveal(itemId) {
+    setFlashId(itemId)
+    requestAnimationFrame(() => gridRef.current?.querySelector(`[data-item-id="${itemId}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
+  }
+
+  // Search adds an item at the free space nearest the middle of what is on screen.
+  function addAtCentre(item) {
+    if (onBoard.has(item.id)) {
+      reveal(item.id)
+      return
+    }
+    const scroll = scrollRef.current
+    const size = defaultSize(item, columnWidth)
+    const middleRow = (scroll.scrollTop + scroll.clientHeight / 2) / ROW
+    const target = { x: Math.round((COLUMNS - size.w) / 2), y: Math.max(0, Math.round(middleRow - size.h / 2)), ...size }
+    placeCard(item, nearestFreeSlot(cards, target))
+    reveal(item.id)
   }
 
   function addNewNote() {
@@ -256,40 +287,40 @@ export default function BoardView({ project, board, onBack, onChange, onPersist 
 
   return (
     <div className="board-view">
-      <header className="project-header board-header">
-        <nav className="breadcrumb" aria-label="Breadcrumb">
-          <button type="button" onClick={onBack}><NavArrowLeft className="ui-icon" aria-hidden="true" /> {project.title}</button>
-          <span aria-hidden="true">/</span>
-          <span>Boards</span>
-        </nav>
-        <div className="board-heading">
-          <div className="board-heading-text">
-            <input
-              className="page-title"
-              value={name}
-              maxLength={120}
-              aria-label="Board name"
-              onChange={(event) => setName(event.target.value)}
-              onBlur={commitName}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') event.currentTarget.blur()
-              }}
-            />
-            <p className="board-meta">{count} item{count === 1 ? '' : 's'}</p>
-          </div>
-          <div className="board-actions">
-            {/* The same button opens and closes the library, so the user never has to reach for the panel's corner. */}
-            <button type="button" className={`btn ${drawerOpen ? 'btn-quiet is-pressed' : 'btn-primary'}`} aria-expanded={drawerOpen} aria-controls="library-drawer" onClick={() => setDrawerOpen(!drawerOpen)}>
-              {drawerOpen ? <><Xmark className="ui-icon" aria-hidden="true" /> Hide library</> : <><Plus className="ui-icon" aria-hidden="true" /> Add from library</>}
-            </button>
-            <Menu label="Board options">
-              <button type="button" className="danger" onClick={deleteBoard}>Delete board</button>
-            </Menu>
-          </div>
-        </div>
+      <header className="board-toolbar">
+        <button type="button" className="board-toolbar-back" onClick={onBack}><NavArrowLeft className="ui-icon" aria-hidden="true" /> {project.title}</button>
+        <span className="board-toolbar-divider" aria-hidden="true">/</span>
+        <input
+          className="board-toolbar-name"
+          value={name}
+          size={Math.max(name.length, 4)}
+          maxLength={120}
+          aria-label="Board name"
+          onChange={(event) => setName(event.target.value)}
+          onBlur={commitName}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.currentTarget.blur()
+          }}
+        />
+        <span className="board-toolbar-count">{count} item{count === 1 ? '' : 's'}</span>
+        <Menu label="Board options">
+          <button type="button" className="danger" onClick={deleteBoard}>Delete board</button>
+        </Menu>
       </header>
+      {/* Mirrors the sidebar toggle: fixed at the top right, over the panel's header when it is open. */}
+      <button
+        type="button"
+        className="panel-toggle"
+        aria-label={drawerOpen ? 'Hide library' : 'Show library'}
+        title={drawerOpen ? 'Hide library' : 'Show library'}
+        aria-controls="library-drawer"
+        aria-expanded={drawerOpen}
+        onClick={() => setDrawerOpen(!drawerOpen)}
+      >
+        <span className="mask-icon is-mirrored" style={{ '--icon': `url("${drawerOpen ? panelCloseIcon : panelOpenIcon}")`, width: 20, height: 20 }} aria-hidden="true" />
+      </button>
       <div className="board-body">
-        <div className="board-scroll">
+        <div ref={scrollRef} className="board-scroll">
           <div
             ref={gridRef}
             className={`board-grid-area${interaction || dropTarget ? ' is-arranging' : ''}`}
@@ -321,7 +352,7 @@ export default function BoardView({ project, board, onBack, onChange, onPersist 
                 <article
                   key={card.itemId}
                   data-item-id={card.itemId}
-                  className={`board-card-item is-${item.type}${isActive ? ` is-${interaction.kind === 'move' ? 'moving' : 'resizing'}` : ''}`}
+                  className={`board-card-item is-${item.type}${isActive ? ` is-${interaction.kind === 'move' ? 'moving' : 'resizing'}` : ''}${flashId === card.itemId ? ' is-flash' : ''}`}
                   style={style}
                   aria-label={itemTitle(item)}
                 >
@@ -375,7 +406,10 @@ export default function BoardView({ project, board, onBack, onChange, onPersist 
               <span className="board-snap-label" style={{ left: px(interaction.target).left, top: px(interaction.target).top + px(interaction.target).height + 8 }}>{sizeMatch}</span>
             )}
             {cards.length === 0 && !dropTarget && (
-              <p className="board-empty">Add notes and images from the library to compare them here.</p>
+              <div className="board-empty">
+                <p className="board-empty-title">Nothing on this board yet</p>
+                <p>Drag notes and images here from the library, or press + beside one.</p>
+              </div>
             )}
           </div>
         </div>
@@ -386,9 +420,17 @@ export default function BoardView({ project, board, onBack, onChange, onPersist 
             onAdd={addItem}
             onNewNote={addNewNote}
             onDragItem={(item) => { draggedItem.current = item }}
-            onClose={() => setDrawerOpen(false)}
           />
       </div>
+      {searching && (
+        <BoardSearch
+          projectTitle={project.title}
+          items={project.items}
+          onBoard={onBoard}
+          onChoose={addAtCentre}
+          onClose={onCloseSearch}
+        />
+      )}
     </div>
   )
 }

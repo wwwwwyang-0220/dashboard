@@ -197,16 +197,6 @@
 
 /* Board */
 .board-view { display: flex; flex: 1; flex-direction: column; min-height: 0; }
-.breadcrumb { position: absolute; top: 14px; left: 32px; display: flex; align-items: center; gap: 4px; color: var(--text-3); font-size: 13px; }
-.app-shell[data-sidebar-open='false'] .breadcrumb { left: 96px; }
-.breadcrumb button { display: inline-flex; align-items: center; gap: 2px; min-height: 24px; padding: 0 6px 0 2px; color: inherit; background: transparent; border: 0; border-radius: var(--radius-sm); transition: color 150ms var(--ease), background-color 150ms var(--ease); }
-.breadcrumb button:hover { color: var(--text-1); background: var(--fill-2); }
-.breadcrumb .ui-icon { width: 16px; height: 16px; }
-.breadcrumb span[aria-hidden] { color: var(--text-4); }
-.board-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.board-heading-text { flex: 1; min-width: 0; }
-.board-meta { margin: 6px 0 0; color: var(--text-3); font-size: 14px; line-height: 20px; font-variant-numeric: tabular-nums; }
-.board-actions { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
 
 .board-body { position: relative; flex: 1; min-height: 0; }
 /* The heading stays in the page column; the canvas spans the full width so there is room to arrange.
@@ -218,11 +208,31 @@
   background-size: var(--column) var(--row);
   background-position: calc(var(--column) / -2) calc(var(--row) / -2);
 }
-.board-empty { position: absolute; top: 120px; left: 50%; width: max-content; max-width: calc(100% - 40px); margin: 0; transform: translateX(-50%); color: var(--text-3); font-size: 14px; text-align: center; }
+.board-empty { position: absolute; top: 160px; left: 50%; width: max-content; max-width: calc(100% - 40px); transform: translateX(-50%); color: var(--text-3); font-size: 14px; line-height: 20px; text-align: center; }
+.board-empty p { margin: 0; }
+.board-empty .board-empty-title { margin-bottom: 6px; color: var(--text-1); font-size: 16px; font-weight: 600; line-height: 24px; }
+
+/* Board toolbar: the board's name sits in the top strip, on the same centre line as the sidebar
+   toggle and search, so the canvas starts right below it. */
+.board-toolbar { display: flex; flex: none; align-items: center; gap: 6px; min-width: 0; height: 48px; padding: 0 72px 0 16px; }
+.app-shell[data-sidebar-open='false'] .board-toolbar { padding-left: 88px; }
+.board-toolbar-back { display: inline-flex; flex: none; align-items: center; gap: 2px; min-height: 28px; padding: 0 6px 0 2px; color: var(--text-3); background: transparent; border: 0; border-radius: var(--radius-sm); font-size: 14px; line-height: 20px; white-space: nowrap; transition: color 150ms var(--ease), background-color 150ms var(--ease); }
+.board-toolbar-back:hover { color: var(--text-1); background: var(--fill-2); }
+.board-toolbar-back .ui-icon { width: 16px; height: 16px; }
+.board-toolbar-divider { flex: none; color: var(--text-4); font-size: 14px; }
+.board-toolbar-name { min-width: 0; max-width: 40ch; padding: 4px 6px; color: var(--text-1); background: transparent; border: 0; border-radius: var(--radius-sm); outline: 0; font-size: 15px; font-weight: 600; line-height: 20px; text-overflow: ellipsis; field-sizing: content; transition: background-color 150ms var(--ease); }
+.board-toolbar-name:hover { background: var(--fill-1); }
+.board-toolbar-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+.board-toolbar-count { flex: none; margin-right: 2px; color: var(--text-3); font-size: 13px; line-height: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.panel-toggle { position: fixed; z-index: 27; top: 6px; right: 8px; display: grid; width: 36px; height: 36px; padding: 0; place-items: center; color: var(--text-2); background: transparent; border: 0; border-radius: var(--radius-md); transition: background-color 150ms var(--ease); }
+.panel-toggle:hover { color: var(--text-1); background: var(--fill-2); }
+.mask-icon.is-mirrored { transform: scaleX(-1); }
+.app-shell:has(.panel-toggle):not(:has(.library-drawer[data-open='true'])) .save-indicator { padding-right: 56px; }
 
 .board-card-item { position: absolute; z-index: 2; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); border: 1px solid var(--line-1); border-radius: var(--radius-lg); box-shadow: var(--shadow-1); transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease); }
 .board-card-item:hover { border-color: var(--line-2); box-shadow: var(--shadow-2); }
 .board-card-item.is-moving { z-index: 5; border-color: var(--line-2); box-shadow: var(--shadow-pop); }
+.board-card-item.is-flash { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-2); }
 .board-card-item.is-resizing { z-index: 5; border-color: var(--accent); transition: width 120ms var(--ease), height 120ms var(--ease); }
 .board-card-item:has(.menu-popover) { z-index: 6; overflow: visible; }
 .board-card-bar { display: flex; flex: none; align-items: center; gap: 6px; height: 36px; padding: 0 4px 0 14px; cursor: grab; touch-action: none; user-select: none; }
@@ -258,8 +268,8 @@
   .app-shell:has(.library-drawer[data-open='true']) .topbar { right: 0; }
   .library-drawer { box-shadow: var(--shadow-pop); }
 }
-.drawer-header { display: flex; flex: none; align-items: center; justify-content: space-between; height: 48px; padding: 0 0 0 8px; }
-.drawer-header h2 { margin: 0; color: var(--text-1); font-size: 16px; font-weight: 600; }
+.drawer-header { display: flex; flex: none; align-items: center; height: 48px; padding: 0 48px 0 8px; }
+.drawer-header h2 { margin: 0; color: var(--text-1); font-size: 15px; font-weight: 600; line-height: 20px; }
 .drawer-search { display: flex; align-items: center; gap: 8px; height: 34px; margin: 8px 8px 0; padding: 0 10px; color: var(--text-3); background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--radius-md); transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease); }
 .drawer-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .drawer-search .ui-icon { width: 16px; height: 16px; }
@@ -287,3 +297,23 @@
 @media (hover: none) {
   .board-card-bar .icon-button, .card-resize, .todo-remove { opacity: 1; }
 }
+
+/* Board search: find a library item and add it to the middle of the board */
+.board-search { width: min(640px, calc(100vw - 32px)); max-height: 72vh; margin: 14vh auto auto; padding: 0; overflow: hidden; color: var(--text-1); background: var(--surface-raised); border: 0; border-radius: 14px; box-shadow: var(--shadow-pop); }
+.board-search[open] { display: flex; flex-direction: column; animation: dialog-in 200ms var(--ease); }
+.board-search::backdrop { background: var(--backdrop); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); animation: backdrop-in 200ms var(--ease); }
+.board-search-field { display: flex; flex: none; align-items: center; gap: 12px; padding: 14px 20px; color: var(--text-3); border-bottom: 1px solid var(--line-1); }
+.board-search-field input { flex: 1; min-width: 0; padding: 0; color: var(--text-1); background: transparent; border: 0; outline: 0; font-size: 16px; line-height: 24px; }
+.board-search-scope { flex: none; color: var(--text-3); font-size: 12px; white-space: nowrap; }
+.board-search-results { flex: 1; min-height: 0; margin: 0; padding: 8px; overflow-y: auto; list-style: none; }
+.board-search-results li { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: var(--radius-md); cursor: pointer; }
+.board-search-results li.is-active { background: var(--accent-soft); }
+.board-search-results .board-search-empty { padding: 16px 12px; color: var(--text-3); font-size: 13px; cursor: default; }
+.board-search-text { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.board-search-title { overflow: hidden; font-size: 14px; font-weight: 500; line-height: 20px; text-overflow: ellipsis; white-space: nowrap; }
+.board-search-detail { overflow: hidden; color: var(--text-3); font-size: 12px; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.board-search-status { display: inline-flex; flex: none; align-items: center; gap: 4px; color: var(--accent); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.board-search-status.is-placed { font-weight: 400; }
+.board-search-status .ui-icon { width: 14px; height: 14px; }
+.board-search-footer { display: flex; flex: none; gap: 16px; padding: 10px 20px 12px; color: var(--text-3); background: var(--fill-1); border-top: 1px solid var(--line-1); font-size: 12px; }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
