@@ -6,7 +6,8 @@ import BoardView from './BoardView.jsx'
 import ProjectHome from './ProjectHome.jsx'
 import pageIcon from './assets/sidebar/page.svg'
 import searchIcon from './assets/sidebar/search.svg'
-import sidebarIcon from './assets/sidebar/sidebar.svg'
+import sidebarCollapseIcon from './assets/sidebar/sidebar-collapse.svg'
+import sidebarExpandIcon from './assets/sidebar/sidebar-expand.svg'
 import './App.css'
 
 function readPreference(key, fallback) {
@@ -317,7 +318,7 @@ function App() {
         onTheme={setTheme}
       />
       <div className="topbar">
-        <button type="button" className="sidebar-toggle" aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'} aria-controls="project-navigation" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen((open) => !open)}><MaskIcon src={sidebarIcon} size={20} /></button>
+        <button type="button" className="sidebar-toggle" aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'} title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'} aria-controls="project-navigation" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen((open) => !open)}><MaskIcon src={sidebarOpen ? sidebarCollapseIcon : sidebarExpandIcon} size={20} /></button>
         {!loading && selectedProject && <SaveIndicator state={saveState} />}
       </div>
       <div className="main-column">

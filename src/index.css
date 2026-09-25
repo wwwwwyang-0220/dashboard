@@ -26,6 +26,7 @@
   --shadow-2: 0 2px 4px rgb(20 24 30 / 4%), 0 6px 16px rgb(20 24 30 / 6%);
   --shadow-pop: 0 0 0 1px var(--line-1), 0 12px 32px rgb(20 24 30 / 14%), 0 2px 6px rgb(20 24 30 / 6%);
   --backdrop: rgb(10 12 16 / 30%);
+  --image-filter: none;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -60,6 +61,7 @@
     --shadow-2: 0 2px 4px rgb(0 0 0 / 30%), 0 8px 20px rgb(0 0 0 / 30%);
     --shadow-pop: 0 0 0 1px var(--line-2), 0 16px 40px rgb(0 0 0 / 50%);
     --backdrop: rgb(0 0 0 / 50%);
+  --image-filter: brightness(0.86);
   }
 }
 
@@ -90,6 +92,7 @@
   --shadow-2: 0 2px 4px rgb(0 0 0 / 30%), 0 8px 20px rgb(0 0 0 / 30%);
   --shadow-pop: 0 0 0 1px var(--line-2), 0 16px 40px rgb(0 0 0 / 50%);
   --backdrop: rgb(0 0 0 / 50%);
+  --image-filter: brightness(0.86);
 }
 
 :root {
