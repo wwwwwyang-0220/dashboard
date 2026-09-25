@@ -6,8 +6,8 @@ import Library from './Library.jsx'
 import TodoList from './TodoList.jsx'
 import './Workspace.css'
 
-// A board opens at full width with the sidebar collapsed; its column width sizes new cards.
-const boardColumnWidth = () => (window.innerWidth - 48) / COLUMNS
+// A board opens with the sidebar collapsed, in the centred page column; its column width sizes new cards.
+const boardColumnWidth = () => (Math.min(window.innerWidth, 1296) - 48) / COLUMNS
 
 function BoardPreview({ board, items }) {
   const rows = Math.max(bottomRow(board.cards), 10)

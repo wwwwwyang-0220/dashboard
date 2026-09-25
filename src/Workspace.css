@@ -202,15 +202,14 @@
 .breadcrumb button:hover { color: var(--text-1); background: var(--fill-2); }
 .breadcrumb .ui-icon { width: 16px; height: 16px; }
 .breadcrumb span[aria-hidden] { color: var(--text-4); }
-/* App.css loads later and caps .project-header, so this needs the extra class to win. */
-.project-header.board-header { padding-inline: 32px; }
 .board-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .board-heading-text { flex: 1; min-width: 0; }
 .board-meta { margin: 6px 0 0; color: var(--text-3); font-size: 14px; line-height: 20px; font-variant-numeric: tabular-nums; }
 .board-actions { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
 
 .board-body { position: relative; flex: 1; min-height: 0; }
-.board-scroll { position: absolute; inset: 0; padding: 16px 24px 48px; overflow-y: auto; }
+/* Cards sit half a gap inside the grid, so the padding is 8px short of the page column's edge. */
+.board-scroll { position: absolute; inset: 0; padding: 16px calc(var(--page-inline) - 8px) 48px; overflow-y: auto; }
 .board-grid-area { position: relative; min-height: 100%; }
 .board-grid-area.is-arranging {
   background-image: radial-gradient(circle, var(--line-2) 1px, transparent 1.5px);
