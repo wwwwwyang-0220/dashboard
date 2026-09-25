@@ -3,7 +3,7 @@ import { Check, MediaImage, NavArrowDown, NavArrowRight } from 'iconoir-react'
 import { Ring } from 'loading-dev'
 
 import ItemFocus from './ItemFocus.jsx'
-import { boardsWith, groupByDate, imageUrl, itemTitle, newNote, readImageSize } from './items.js'
+import { boardsWith, distinctImages, groupByDate, imageUrl, itemTitle, newNote, readImageSize } from './items.js'
 
 const FILTERS = [['all', 'All'], ['note', 'Notes'], ['image', 'Images']]
 const CARD_MIN = 220
@@ -329,7 +329,7 @@ export default function Library({ project, onChange, onPersist, onUploadImage, o
   }
 
   async function addImages(files) {
-    const images = [...files].filter((file) => file.type.startsWith('image/'))
+    const images = await distinctImages(files)
     setUploading((current) => current + images.length)
     for (const file of images) {
       try {

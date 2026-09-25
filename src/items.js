@@ -74,3 +74,16 @@ export function groupByDate(items, now = new Date()) {
 export function boardsWith(project, itemId) {
   return project.boards.filter((board) => board.cards.some((card) => card.itemId === itemId))
 }
+
+// Keeps the image files in `files`, dropping byte-identical repeats. A macOS
+// clipboard can offer one copied image in several formats, and Safari may pass
+// each one to a paste as its own file.
+export async function distinctImages(files) {
+  const kept = []
+  for (const file of [...files].filter((candidate) => candidate.type.startsWith('image/'))) {
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    const repeat = kept.some((other) => other.bytes.length === bytes.length && other.bytes.every((value, index) => value === bytes[index]))
+    if (!repeat) kept.push({ file, bytes })
+  }
+  return kept.map(({ file }) => file)
+}
