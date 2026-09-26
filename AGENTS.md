@@ -27,13 +27,9 @@
 
 ## Verification and testing
 
-The owner reviews behavior, not code, so a change is done when its user-visible claim has been proven through the real app and reported in terms the owner can check. The procedure and the driver live in `.claude/skills/verify-dashboard/SKILL.md`; read it before verifying.
+The owner reviews behavior, not code. How to verify, what counts as proof, and how to report it live in `.claude/skills/verify-dashboard/SKILL.md`; read it when you reach verification.
 
 - Before editing, state the change as a claim a non-programmer can check: the situation, the action, and what the user then sees. Confirm it with the owner when the task came from them.
-- For any user-visible or saved-data change, prove the claim with `control-dashboard.mjs` against its disposable instance, which leaves the owner's dev server and `data/projects.json` alone. Drive the real UI, reload, and read the saved data back; cover the success, cancel, empty, and persistence paths the change can affect. Use `narrow`, the iPad viewports, and `webkit-shot` when layout or touch changes.
-- Once the claim is proven, stop; broaden or repeat checks only when new changes, failures, or open concerns justify it.
-- Report one verdict per claim: VERIFIED, NOT VERIFIED, or INCONCLUSIVE, with screenshot paths from `.verify/evidence/` and a plain list of what was not verified. Real iPad hardware, paste and drag-and-drop of files, and search by meaning without `--semantic` are always in that list when they are affected.
-- Run `npm run lint` and `npm run build` for code changes, and `node --test test/search.test.js` for search changes. These are necessary and never sufficient on their own.
-- Write automated tests where logic can break quietly (search ranking, board layout rules, storage validation). Skip tests that only mirror the implementation of a reversible, low-impact change.
-- The feature map in `.claude/skills/verify-dashboard/features/` is the owner's checklist of behavior that must keep working. Update the matching feature file in the same commit as any change to user-visible behavior. When the app and a feature file disagree, fix the file for drift and report the app for a regression.
-- `npm run dev` is the owner's everyday instance; verification uses `control-dashboard.mjs up` instead, and `down` afterwards.
+- A user-visible or saved-data change is done when the skill's procedure has produced a VERIFIED, NOT VERIFIED, or INCONCLUSIVE verdict with its evidence.
+- Verify on the skill's disposable instance (`control-dashboard.mjs up`, then `down`). The owner's `npm run dev` instance and `data/projects.json` stay untouched.
+- Update the matching file in `.claude/skills/verify-dashboard/features/` in the same commit as any change to user-visible behavior.

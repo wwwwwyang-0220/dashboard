@@ -67,7 +67,14 @@ End with one verdict for the claim:
 - **NOT VERIFIED**: the behavior is missing or wrong. Say what happened instead.
 - **INCONCLUSIVE**: the check could not run or could not distinguish the outcomes. Say what blocked it.
 
-Then list, in plain language: what you drove, the screenshot paths, and what you did not verify (always include iPad hardware when layout or touch changed). Run `npm run lint` and `npm run build` for code changes as well; they are necessary but never sufficient.
+Then list, in plain language: what you drove, the screenshot paths, and what you did not verify. Real iPad hardware, paste and drag-and-drop of files, and search by meaning without `--semantic` always go on that list when the change affects them.
+
+Once the claim is proven, stop. Broaden or repeat checks only when new changes, failures, or open concerns justify it.
+
+## Checks alongside the drive
+
+- `npm run lint` and `npm run build` for code changes; `node --test test/search.test.js` for search changes. Necessary, never sufficient.
+- Write automated tests where logic can break quietly: search ranking, board layout rules, storage validation. Skip tests that only mirror the implementation of a reversible, low-impact change.
 
 ## 6. Clean up
 
