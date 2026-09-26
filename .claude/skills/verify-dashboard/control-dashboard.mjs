@@ -1,0 +1,384 @@
+#!/usr/bin/env node
+// Drives a disposable instance of the dashboard for verification. See SKILL.md; `--help` lists commands.
+import { execFileSync, spawn } from 'node:child_process'
+import { appendFileSync, cpSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { parseArgs } from 'node:util'
+
+const SKILL = path.dirname(fileURLToPath(import.meta.url))
+const ROOT = path.resolve(SKILL, '../../..')
+// Express will not serve files from a path containing a dot-directory, so the scratch instance lives outside the repo.
+const RUN = '/tmp/dashboard-verify'
+const EVIDENCE_ROOT = path.join(ROOT, '.verify/evidence')
+const STATE = path.join(RUN, 'state.json')
+const USER_DATA = path.join(ROOT, 'data/projects.json')
+const OCR_BINARY = path.join(os.homedir(), 'Library/Caches/dashboard-verify/vision-ocr')
+const PORTS = { api: 3101, web: 5273, cdp: 9333 }
+const WEB = `http://127.0.0.1:${PORTS.web}`
+const VIEWPORTS = { desktop: [1440, 900], 'ipad-landscape': [1180, 820], 'ipad-portrait': [820, 1180], narrow: [900, 1000] }
+
+const HELP = `control-dashboard: drive a disposable dashboard instance and capture evidence.
+
+Instance (API :${PORTS.api}, web :${PORTS.web}, headless Chromium CDP :${PORTS.cdp}; your own dev server is never touched)
+  up [--semantic]          seed fixtures into /tmp/dashboard-verify and start API, Vite, and Chromium.
+                           --semantic uses your real Gemini key; default sends an invalid key so search stays keyword-only.
+  doctor                   read-only health check; exit 1 when the instance is not worth driving.
+  down                     stop what "up" started and delete /tmp/dashboard-verify. Evidence stays.
+
+Browser (Chromium, persistent page between commands)
+  open [path] [--viewport desktop|ipad-landscape|ipad-portrait|narrow]
+  click   TARGET [--right] [--dialog accept|dismiss]
+  fill    TARGET --value TEXT
+  press   KEY [TARGET]            e.g. press Meta+Enter --label "New note"; press Escape
+  upload  TARGET --file PATH      clicks TARGET and answers the file chooser
+  reload
+  snapshot [TARGET]               accessibility tree (YAML) of the page or TARGET
+  screenshot NAME [--full]        saves evidence/<run>/NAME.png
+  eval JS                         read-only inspection after a user action; never use it to perform the action
+
+Side effects and other engines
+  data [--project ID]             print the disposable projects.json the API wrote
+  webkit-shot NAME [path] [--portrait]
+                                  WebKit (Safari's engine) with an emulated iPad Pro 11 viewport and touch.
+                                  Not a real iPad; report iPad-only behavior as unverified.
+
+TARGET (combine to narrow; first match must be unique unless --nth is given)
+  --role ROLE --name NAME   accessible role and name, e.g. --role button --name "New board"
+  --label TEXT              form control by aria-label/label, e.g. --label "Add a task"
+  --text TEXT               visible text
+  --css SELECTOR            fallback, e.g. --css '[data-item-id="note-method"]'
+  --within CSS              scope the search, e.g. --within '.todo-panel'
+  --exact  --nth N
+
+Every command prints one JSON object: ok, what happened, saveState, and consoleErrors seen during the command.
+Commands and results are appended to evidence/<run>/commands.jsonl.`
+
+const OPTIONS = {
+  role: { type: 'string' }, name: { type: 'string' }, label: { type: 'string' }, text: { type: 'string' },
+  css: { type: 'string' }, within: { type: 'string' }, exact: { type: 'boolean' }, nth: { type: 'string' },
+  value: { type: 'string' }, file: { type: 'string' }, dialog: { type: 'string' }, right: { type: 'boolean' },
+  viewport: { type: 'string' }, full: { type: 'boolean' }, portrait: { type: 'boolean' }, project: { type: 'string' },
+  semantic: { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
+}
+
+class UsageError extends Error {}
+
+const readState = () => existsSync(STATE) ? JSON.parse(readFileSync(STATE, 'utf8')) : null
+const alive = (pid) => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+const listener = (port) => {
+  try {
+    return Number(execFileSync('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'], { encoding: 'utf8' }).trim().split('\n')[0]) || null
+  } catch {
+    return null
+  }
+}
+const descendants = (pid) => {
+  try {
+    const children = execFileSync('pgrep', ['-P', String(pid)], { encoding: 'utf8' }).trim().split('\n').filter(Boolean).map(Number)
+    return [pid, ...children.flatMap(descendants)]
+  } catch {
+    return [pid]
+  }
+}
+const fingerprint = (file) => existsSync(file) ? (({ size, mtimeMs }) => ({ size, mtimeMs }))(statSync(file)) : null
+
+async function waitFor(what, check, log, timeout = 40000) {
+  const start = Date.now()
+  while (Date.now() - start < timeout) {
+    try {
+      if (await check()) return
+    } catch {
+      // not ready yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300))
+  }
+  throw new Error(`${what} did not become ready in ${timeout / 1000}s. Read ${log}, then run "down" before retrying.`)
+}
+
+function start(name, command, args, env) {
+  const log = path.join(RUN, 'logs', `${name}.log`)
+  const out = openSync(log, 'a')
+  const child = spawn(command, args, { cwd: ROOT, env: { ...process.env, ...env }, detached: true, stdio: ['ignore', out, out] })
+  child.unref()
+  return { pid: child.pid, log }
+}
+
+async function up({ semantic }) {
+  const existing = readState()
+  if (existing) throw new UsageError(`An instance is already recorded in ${STATE}. Run "doctor" to check it, or "down" to replace it.`)
+  for (const [role, port] of Object.entries(PORTS)) {
+    const owner = listener(port)
+    if (owner) throw new UsageError(`Port ${port} (${role}) is held by pid ${owner}, which "up" did not start. Stop it or change PORTS in control-dashboard.mjs.`)
+  }
+  const { chromium } = await import('playwright-core')
+  rmSync(RUN, { recursive: true, force: true })
+  mkdirSync(path.join(RUN, 'logs'), { recursive: true })
+  mkdirSync(path.dirname(OCR_BINARY), { recursive: true })
+  cpSync(path.join(SKILL, 'fixtures/projects.json'), path.join(RUN, 'data/projects.json'))
+  cpSync(path.join(SKILL, 'fixtures/files'), path.join(RUN, 'data/files'), { recursive: true })
+  const evidence = path.join(EVIDENCE_ROOT, new Date().toISOString().replace(/[:.]/g, '-'))
+  mkdirSync(evidence, { recursive: true })
+
+  const node = process.execPath
+  const api = start('api', node, ['server/index.js'], {
+    API_PORT: String(PORTS.api),
+    PROJECTS_DATA_FILE: path.join(RUN, 'data/projects.json'),
+    PROJECTS_FILES_DIR: path.join(RUN, 'data/files'),
+    SEARCH_INDEX_FILE: path.join(RUN, 'data/search/index.json'),
+    EMBEDDING_INDEX_FILE: path.join(RUN, 'data/search/embeddings.json'),
+    OCR_BINARY_FILE: OCR_BINARY,
+    ...(semantic ? {} : { GEMINI_API_KEY: 'verify-offline-invalid-key' }),
+  })
+  const web = start('web', node, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(PORTS.web), '--strictPort'], {
+    API_PROXY_TARGET: `http://127.0.0.1:${PORTS.api}`,
+  })
+  const browser = start('chromium', chromium.executablePath(), [
+    '--headless=new', `--remote-debugging-port=${PORTS.cdp}`, `--user-data-dir=${path.join(RUN, 'chromium-profile')}`,
+    '--no-first-run', '--no-default-browser-check', `--window-size=${VIEWPORTS.desktop.join(',')}`, 'about:blank',
+  ], {})
+  const state = { startedAt: new Date().toISOString(), pids: { api: api.pid, web: web.pid, chromium: browser.pid }, evidence, semantic: Boolean(semantic), userData: fingerprint(USER_DATA) }
+  writeFileSync(STATE, JSON.stringify(state, null, 2))
+
+  await waitFor('API', async () => (await fetch(`http://127.0.0.1:${PORTS.api}/api/health`)).ok, api.log)
+  await waitFor('Vite', async () => (await fetch(WEB)).ok, web.log)
+  await waitFor('Chromium', async () => (await fetch(`http://127.0.0.1:${PORTS.cdp}/json/version`)).ok, browser.log)
+  return { started: state.pids, web: WEB, evidence, semanticSearch: state.semantic ? 'real Gemini key' : 'off (keyword and OCR only)', next: 'doctor, then open' }
+}
+
+async function doctor() {
+  const state = readState()
+  if (!state) return { ok: false, problem: 'No instance recorded. Run "up".' }
+  const checks = {}
+  for (const [role, port] of [['api', PORTS.api], ['web', PORTS.web], ['chromium', PORTS.cdp]]) {
+    const pid = state.pids[role]
+    const owner = listener(port)
+    checks[role] = { pid, running: alive(pid), portOwnedByUs: owner !== null && descendants(pid).includes(owner) }
+  }
+  const probe = async (url) => {
+    try {
+      return (await fetch(url)).ok
+    } catch {
+      return false
+    }
+  }
+  checks.apiHealth = await probe(`http://127.0.0.1:${PORTS.api}/api/health`)
+  checks.apiServesFixtures = await (async () => {
+    try {
+      const projects = await (await fetch(`http://127.0.0.1:${PORTS.api}/api/projects`)).json()
+      return projects.every((project) => project.id.startsWith('verify-'))
+    } catch {
+      return false
+    }
+  })()
+  checks.webProxiesToVerifyApi = await probe(`${WEB}/api/health`)
+  checks.yourDataUntouched = JSON.stringify(fingerprint(USER_DATA)) === JSON.stringify(state.userData)
+  const ok = ['api', 'web', 'chromium'].every((role) => checks[role].running && checks[role].portOwnedByUs)
+    && checks.apiHealth && checks.apiServesFixtures && checks.webProxiesToVerifyApi && checks.yourDataUntouched
+  return { ok, checks, evidence: state.evidence, ...(ok ? {} : { next: 'Read /tmp/dashboard-verify/logs/*.log. If a process died, run "down" then "up".' }) }
+}
+
+async function down() {
+  const state = readState()
+  const stopped = []
+  if (state) {
+    for (const [role, pid] of Object.entries(state.pids)) {
+      if (!alive(pid)) continue
+      try {
+        process.kill(-pid, 'SIGTERM')
+      } catch {
+        process.kill(pid, 'SIGTERM')
+      }
+      stopped.push(role)
+    }
+    await new Promise((resolve) => setTimeout(resolve, 800))
+    for (const pid of Object.values(state.pids).flatMap(descendants)) {
+      if (alive(pid)) process.kill(pid, 'SIGKILL')
+    }
+  }
+  const leftovers = Object.entries(PORTS).filter(([, port]) => state && Object.values(state.pids).flatMap(descendants).includes(listener(port)))
+  rmSync(RUN, { recursive: true, force: true })
+  return { stopped, leftovers: leftovers.map(([role]) => role), evidenceKept: state?.evidence ?? null }
+}
+
+function requireState() {
+  const state = readState()
+  if (!state) throw new UsageError('No instance is running. Run "up" first.')
+  return state
+}
+
+async function connect() {
+  const { chromium } = await import('playwright-core')
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${PORTS.cdp}`)
+  const context = browser.contexts()[0]
+  const page = context.pages().find((candidate) => candidate.url().startsWith(WEB)) ?? context.pages()[0] ?? await context.newPage()
+  return { browser, page }
+}
+
+function locate(page, values) {
+  let scope = values.within ? page.locator(values.within) : page
+  if (values.within && (values.role || values.label || values.text)) scope = scope.first()
+  const exact = Boolean(values.exact)
+  let locator
+  if (values.role) locator = scope.getByRole(values.role, values.name ? { name: values.name, exact } : {})
+  else if (values.label) locator = scope.getByLabel(values.label, { exact })
+  else if (values.text) locator = scope.getByText(values.text, { exact })
+  else if (values.css) locator = scope.locator(values.css)
+  else return null
+  return values.nth !== undefined ? locator.nth(Number(values.nth)) : locator
+}
+
+async function resolveTarget(page, values) {
+  const locator = locate(page, values)
+  if (!locator) throw new UsageError('This command needs a TARGET: --role/--name, --label, --text, or --css.')
+  const count = await locator.count()
+  if (count === 0) throw new UsageError(`No element matches ${describe(values)}. Run "snapshot" to see the names on screen.`)
+  if (count > 1 && values.nth === undefined) throw new UsageError(`${count} elements match ${describe(values)}. Add --within, --exact, or --nth.`)
+  return locator.first()
+}
+
+const describe = (values) => ['role', 'name', 'label', 'text', 'css', 'within', 'nth'].filter((key) => values[key] !== undefined).map((key) => `--${key} ${JSON.stringify(values[key])}`).join(' ')
+
+async function settle(page) {
+  await page.waitForLoadState('load')
+  await page.waitForFunction(() => document.querySelector('.save-indicator')?.dataset.state !== 'saving', null, { timeout: 10000 }).catch(() => {})
+  await page.waitForTimeout(150)
+  return page.evaluate(() => ({
+    url: location.pathname + location.search,
+    saveState: document.querySelector('.save-indicator')?.dataset.state ?? null,
+    alert: document.querySelector('[role="alert"]')?.textContent ?? null,
+  }))
+}
+
+async function setViewport(page, name) {
+  const size = VIEWPORTS[name]
+  if (!size) throw new UsageError(`Unknown viewport "${name}". Use one of: ${Object.keys(VIEWPORTS).join(', ')}.`)
+  const session = await page.context().newCDPSession(page)
+  const { windowId } = await session.send('Browser.getWindowForTarget')
+  await session.send('Browser.setWindowBounds', { windowId, bounds: { width: size[0], height: size[1] } })
+  const [innerWidth, innerHeight] = await page.evaluate(() => [innerWidth, innerHeight])
+  await session.send('Browser.setWindowBounds', { windowId, bounds: { width: 2 * size[0] - innerWidth, height: 2 * size[1] - innerHeight } })
+  await session.detach()
+  return await page.evaluate(() => [innerWidth, innerHeight])
+}
+
+async function browserCommand(command, positional, values) {
+  const state = requireState()
+  const { browser, page } = await connect()
+  const consoleErrors = []
+  const dialogs = []
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text())
+  })
+  page.on('pageerror', (error) => consoleErrors.push(String(error)))
+  page.on('response', (response) => {
+    if (response.status() >= 400) consoleErrors.push(`HTTP ${response.status()} ${new URL(response.url()).pathname}`)
+  })
+  page.on('dialog', async (dialog) => {
+    dialogs.push({ message: dialog.message(), answered: values.dialog === 'accept' ? 'accept' : 'dismiss' })
+    if (values.dialog === 'accept') await dialog.accept()
+    else await dialog.dismiss()
+  })
+  try {
+    const result = {}
+    if (command === 'open') {
+      if (values.viewport) result.viewport = await setViewport(page, values.viewport)
+      await page.goto(new URL(positional[0] ?? '/', WEB).href)
+      await page.waitForSelector('.loading-message[role="status"]', { state: 'detached', timeout: 15000 }).catch(() => {})
+    } else if (command === 'click') {
+      await (await resolveTarget(page, values)).click(values.right ? { button: 'right' } : {})
+    } else if (command === 'fill') {
+      if (values.value === undefined) throw new UsageError('fill needs --value TEXT.')
+      await (await resolveTarget(page, values)).fill(values.value)
+    } else if (command === 'press') {
+      if (!positional[0]) throw new UsageError('press needs a KEY, e.g. Enter, Escape, Meta+Enter, Meta+KeyK.')
+      if (locate(page, values)) await (await resolveTarget(page, values)).press(positional[0])
+      else await page.keyboard.press(positional[0])
+    } else if (command === 'upload') {
+      if (!values.file) throw new UsageError('upload needs --file PATH.')
+      const file = path.resolve(values.file)
+      if (!existsSync(file)) throw new UsageError(`${file} does not exist. The skill ships fixtures/upload.png for this.`)
+      const [chooser] = await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }), (await resolveTarget(page, values)).click()])
+      await chooser.setFiles(file)
+      await page.waitForFunction(() => !document.querySelector('.upload-status'), null, { timeout: 30000 })
+    } else if (command === 'reload') {
+      await page.reload()
+    } else if (command === 'snapshot') {
+      const target = locate(page, values) ? await resolveTarget(page, values) : page.locator('body')
+      result.snapshot = await target.ariaSnapshot()
+    } else if (command === 'screenshot') {
+      if (!positional[0]) throw new UsageError('screenshot needs a NAME, e.g. screenshot todo-after-reload.')
+      result.file = path.join(state.evidence, `${positional[0].replace(/[^\w-]/g, '_')}.png`)
+      await page.screenshot({ path: result.file, fullPage: Boolean(values.full) })
+    } else if (command === 'eval') {
+      if (!positional[0]) throw new UsageError('eval needs a JS expression.')
+      result.value = await page.evaluate(positional[0])
+    }
+    Object.assign(result, await settle(page))
+    return { ...result, dialogs, consoleErrors }
+  } finally {
+    await browser.close()
+  }
+}
+
+async function webkitShot(positional, values) {
+  const state = requireState()
+  if (!positional[0]) throw new UsageError('webkit-shot needs a NAME.')
+  const { webkit, devices } = await import('playwright-core')
+  const device = devices[values.portrait ? 'iPad Pro 11' : 'iPad Pro 11 landscape']
+  const browser = await webkit.launch()
+  try {
+    const page = await (await browser.newContext(device)).newPage()
+    const consoleErrors = []
+    page.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push(message.text())
+    })
+    page.on('pageerror', (error) => consoleErrors.push(String(error)))
+    await page.goto(new URL(positional[1] ?? '/', WEB).href)
+    await page.waitForSelector('.loading-message[role="status"]', { state: 'detached', timeout: 15000 }).catch(() => {})
+    const file = path.join(state.evidence, `${positional[0].replace(/[^\w-]/g, '_')}.png`)
+    await page.screenshot({ path: file })
+    return { file, engine: 'WebKit', viewport: device.viewport, caveat: 'Emulated iPad; not a real device', consoleErrors }
+  } finally {
+    await browser.close()
+  }
+}
+
+function data(values) {
+  const file = path.join(requireState() && RUN, 'data/projects.json')
+  const projects = JSON.parse(readFileSync(file, 'utf8'))
+  return { file, projects: values.project ? projects.filter((project) => project.id === values.project) : projects }
+}
+
+async function main() {
+  const { values, positionals } = parseArgs({ options: OPTIONS, allowPositionals: true, strict: true })
+  const [command, ...rest] = positionals
+  if (!command || values.help) return console.log(HELP)
+  let result
+  if (command === 'up') result = await up(values)
+  else if (command === 'doctor') result = await doctor()
+  else if (command === 'down') result = await down()
+  else if (command === 'data') result = data(values)
+  else if (command === 'webkit-shot') result = await webkitShot(rest, values)
+  else if (['open', 'click', 'fill', 'press', 'upload', 'reload', 'snapshot', 'screenshot', 'eval'].includes(command)) result = await browserCommand(command, rest, values)
+  else throw new UsageError(`Unknown command "${command}". Run --help.`)
+  const ok = result.ok ?? true
+  const output = { ok, command, ...result }
+  const evidence = readState()?.evidence ?? result.evidenceKept
+  if (evidence && command !== 'data') appendFileSync(path.join(evidence, 'commands.jsonl'), JSON.stringify({ at: new Date().toISOString(), argv: process.argv.slice(2), ...output, snapshot: undefined }) + '\n')
+  console.log(command === 'snapshot' ? `${JSON.stringify({ ...output, snapshot: undefined })}\n${result.snapshot}` : JSON.stringify(output, null, 2))
+  if (!ok) process.exitCode = 1
+}
+
+main().catch((error) => {
+  console.log(JSON.stringify({ ok: false, error: error.message.split('\n')[0], ...(error instanceof UsageError ? {} : { next: 'Run "doctor". If it fails, "down" then "up".' }) }, null, 2))
+  process.exitCode = 1
+})

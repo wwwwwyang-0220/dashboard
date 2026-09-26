@@ -30,3 +30,6 @@ data/search/
 *.njsproj
 *.sln
 *.sw?
+
+# Verification runs (scratch instance and kept evidence)
+.verify/

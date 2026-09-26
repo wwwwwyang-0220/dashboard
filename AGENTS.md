@@ -29,3 +29,5 @@
 
 - Match verification to the change's impact. Do not write tests for reversible, low-impact changes that merely mirror the implementation. When tests are warranted, keep them meaningful. Run the checks appropriate to the change; once they pass, broaden or repeat only if new changes, failures, or unresolved concerns justify it.
 - Use `npm run dev` to run the API and frontend together. Use `npm run lint` and `npm run build` when relevant to code or build changes. For interaction or persistence changes, verify the affected user flow, including refresh when saved state is involved.
+- The owner reviews behavior, not code. For any user-visible or saved-data change, follow `.claude/skills/verify-dashboard/SKILL.md`: state the claim in plain words before editing, drive it through a disposable instance with `control-dashboard.mjs`, and report a VERIFIED, NOT VERIFIED, or INCONCLUSIVE verdict with screenshot paths and what was not verified.
+- Keep `.claude/skills/verify-dashboard/features/` in step with the app: when a change adds or alters user-visible behavior, update the matching feature file in the same commit.

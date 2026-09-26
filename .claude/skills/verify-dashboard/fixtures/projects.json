@@ -1,0 +1,59 @@
+[
+  {
+    "id": "verify-alpha",
+    "title": "Reading Study",
+    "description": "Fixture project with to-dos, notes, an image, and a board.",
+    "todos": [
+      { "id": "todo-open-1", "text": "Pilot the stimulus list", "done": false, "doneAt": null },
+      { "id": "todo-open-2", "text": "Email the lab about room booking", "done": false, "doneAt": null },
+      { "id": "todo-done-1", "text": "Draft consent form", "done": true, "doneAt": "2026-09-20T10:00:00.000Z" }
+    ],
+    "items": [
+      {
+        "id": "note-method",
+        "type": "note",
+        "title": "Method notes",
+        "content": "Participants read short passages and answer comprehension questions.",
+        "createdAt": "2026-09-18T09:00:00.000Z",
+        "updatedAt": "2026-09-18T09:00:00.000Z"
+      },
+      {
+        "id": "note-untitled",
+        "type": "note",
+        "title": "",
+        "content": "Remember to counterbalance passage order.",
+        "createdAt": "2026-09-10T14:30:00.000Z",
+        "updatedAt": "2026-09-10T14:30:00.000Z"
+      },
+      {
+        "id": "image-bars",
+        "type": "image",
+        "title": "Reading times by condition",
+        "file": "0f5a3c1e-2b7d-4e8a-9c61-5d2e8b4a7f10.png",
+        "width": 480,
+        "height": 300,
+        "createdAt": "2026-09-18T11:00:00.000Z",
+        "updatedAt": "2026-09-18T11:00:00.000Z"
+      }
+    ],
+    "boards": [
+      {
+        "id": "board-compare",
+        "name": "Method vs results",
+        "updatedAt": "2026-09-19T08:00:00.000Z",
+        "cards": [
+          { "itemId": "note-method", "x": 0, "y": 0, "w": 8, "h": 8 },
+          { "itemId": "image-bars", "x": 8, "y": 0, "w": 12, "h": 10 }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "verify-beta",
+    "title": "反应时实验",
+    "description": "Empty fixture project for empty states.",
+    "todos": [],
+    "items": [],
+    "boards": []
+  }
+]
