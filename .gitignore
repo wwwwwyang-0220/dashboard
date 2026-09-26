@@ -18,6 +18,7 @@ data/*.json
 !data/projects.example.json
 data/*.tmp
 data/files/
+data/search/
 
 # Editor directories and files
 .vscode/*

@@ -1,6 +1,7 @@
 import express from 'express'
 import path from 'node:path'
 
+import { ocrIndex } from './ocr-index.js'
 import {
   filesDir,
   imageFilePattern,
@@ -36,7 +37,17 @@ app.get('/api/search', async (request, response) => {
     response.status(400).json({ error: 'Search query must be at most 120 characters' })
     return
   }
-  response.json(searchProjects(await listProjects(), query))
+  const projects = await listProjects()
+  const indexing = await ocrIndex.sync(projects)
+  response.json({ ...searchProjects(projects, query, 60, ocrIndex.records), indexing })
+})
+
+app.get('/api/search/index', async (_request, response) => {
+  response.json(await ocrIndex.sync(await listProjects()))
+})
+
+app.post('/api/search/rebuild', async (_request, response) => {
+  response.status(202).json(await ocrIndex.sync(await listProjects(), { force: true }))
 })
 
 app.put('/api/projects/:id', async (request, response) => {
@@ -49,7 +60,9 @@ app.put('/api/projects/:id/todos', async (request, response) => {
 })
 
 app.put('/api/projects/:id/items', async (request, response) => {
-  response.json(await updateProjectItems(request.params.id, request.body?.items))
+  const project = await updateProjectItems(request.params.id, request.body?.items)
+  await ocrIndex.sync(await listProjects())
+  response.json(project)
 })
 
 app.put('/api/projects/:id/boards', async (request, response) => {
@@ -100,4 +113,5 @@ app.use((error, _request, response, _next) => {
 
 app.listen(port, host, () => {
   console.log(`Project API listening on http://${host}:${port}`)
+  listProjects().then((projects) => ocrIndex.sync(projects)).catch((error) => console.error('Could not start OCR indexing:', error))
 })

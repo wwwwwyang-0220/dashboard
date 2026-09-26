@@ -41,3 +41,14 @@ test('returns bounded results without altering the total', () => {
   assert.deepEqual(results, [])
   assert.deepEqual(searchProjects(projects, ' ').results, [])
 })
+
+test('finds OCR text in an image and shows the matched line', () => {
+  const records = { 'chart.png': { state: 'ready', text: 'Related Probe\nAccuracy\nYA\nControl Strategy' } }
+  const matched = searchProjects(projects, 'Related Probe', 60, records)
+  assert.equal(matched.results.length, 1)
+  assert.equal(matched.results[0].id, 'image-1')
+  assert.equal(matched.results[0].snippet, 'Related Probe')
+  const combined = searchProjects(projects, 'YA Strategy', 60, records)
+  assert.equal(combined.results[0].snippet, 'YA · Control Strategy')
+  assert.equal(searchProjects(projects, 'Related Probe').results.length, 0)
+})

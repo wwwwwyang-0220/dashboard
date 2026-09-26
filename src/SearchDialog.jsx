@@ -8,6 +8,7 @@ export default function SearchDialog({ onClose, onSelect }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [total, setTotal] = useState(0)
+  const [indexing, setIndexing] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -20,20 +21,24 @@ export default function SearchDialog({ onClose, onSelect }) {
     const trimmed = query.trim()
     if (!trimmed) return
     const controller = new AbortController()
-    const timer = setTimeout(async () => {
+    let timer
+    async function search() {
       try {
         const response = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`, { signal: controller.signal })
         const data = await response.json()
         if (!response.ok) throw new Error(data.error ?? 'Could not search')
         setResults(data.results)
         setTotal(data.total)
+        setIndexing(data.indexing?.pending ?? 0)
         setError('')
+        if (data.indexing?.pending) timer = setTimeout(search, 1500)
       } catch (searchError) {
         if (searchError.name !== 'AbortError') setError(searchError.message)
       } finally {
         if (!controller.signal.aborted) setLoading(false)
       }
-    }, 180)
+    }
+    timer = setTimeout(search, 180)
     return () => {
       clearTimeout(timer)
       controller.abort()
@@ -44,6 +49,7 @@ export default function SearchDialog({ onClose, onSelect }) {
     setQuery(value)
     setResults([])
     setTotal(0)
+    setIndexing(0)
     setError('')
     setLoading(Boolean(value.trim()))
   }
@@ -67,8 +73,9 @@ export default function SearchDialog({ onClose, onSelect }) {
         </div>
         <div className="search-dialog-results">
           {!query.trim() && <p className="search-dialog-message">Find a project, note, or image by its title or text.</p>}
+          {query.trim() && !loading && !error && indexing > 0 && <p className="search-dialog-count" role="status">Reading text from {indexing} image{indexing === 1 ? '' : 's'}… Results will update.</p>}
           {query.trim() && !loading && error && <p className="search-dialog-message is-error">{error}</p>}
-          {query.trim() && !loading && !error && results.length === 0 && <p className="search-dialog-message">No results for “{query.trim()}”.</p>}
+          {query.trim() && !loading && !error && results.length === 0 && <p className="search-dialog-message">{indexing ? 'No matches yet.' : `No results for “${query.trim()}”.`}</p>}
           {results.length > 0 && !loading && !error && (
             <>
               <p className="search-dialog-count" role="status">{total} result{total === 1 ? '' : 's'}{total > results.length ? ` · showing first ${results.length}` : ''}</p>
