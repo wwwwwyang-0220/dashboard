@@ -24,9 +24,9 @@ The project is early and features change fast, so pick the tier before starting 
 |---|---|---|
 | 1 | Copy, spacing, colour, a local fix that does not change what the user can do or what gets saved | `npm run lint` and `npm run build`; one screenshot if visual. Skip the rest of this skill. |
 | 2 | A feature or behavior change | Automatic, as part of the task: steps 1–6 for the changed behavior only. |
-| 3 | A finished feature area, shared foundations changed (`App.jsx` save queue, `server/project-store.js`, storage format), or the owner asks | Full sweep: walk `features/README.md` top to bottom and update the feature files. |
+| 3 | Milestone sweep, run only when the owner asks | Walk `features/README.md` top to bottom and update the feature files. |
 
-When a tier-2 change touched shared foundations, say in the report that a sweep is worth running.
+End a tier-2 report by suggesting a sweep when a feature area looks finished or the change touched shared foundations (`App.jsx` save queue, `server/project-store.js`, storage format).
 
 ## 1. State the claim
 

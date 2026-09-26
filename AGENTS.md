@@ -31,6 +31,6 @@ The owner reviews behavior, not code, and the project is early: features change 
 
 - **Tier 1, small changes** (copy, spacing, colour, a local fix that does not change what the user can do or what gets saved): run `npm run lint` and `npm run build`, add one screenshot when it is visual, and move on.
 - **Tier 2, a feature or behavior change**: verify it automatically as part of the task. Drive only the changed behavior on the skill's disposable instance, read back the saved data, and report a VERIFIED, NOT VERIFIED, or INCONCLUSIVE verdict with its claim and evidence.
-- **Tier 3, milestones**: when the owner asks for a sweep, when a feature area is finished, or when shared foundations change (the save queue in `App.jsx`, `server/project-store.js`, the storage format), walk the whole feature map and bring the feature files up to date. Suggest a sweep when a tier-2 change touched those foundations.
+- **Tier 3, milestone sweeps**: run only when the owner asks. Walk the whole feature map and bring the feature files up to date. Suggest one at the end of a report when a feature area looks finished or the change touched shared foundations (the save queue in `App.jsx`, `server/project-store.js`, the storage format).
 - Ask the owner about the claim only when what they want is unclear; otherwise state the claim in the report so they can check it afterwards.
 - Verification always runs on the disposable instance (`control-dashboard.mjs up`, then `down`). The owner's `npm run dev` instance and `data/projects.json` stay untouched.
