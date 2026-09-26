@@ -24,15 +24,23 @@ The project is early and features change fast, so pick the tier before starting 
 
 | Tier | Change | Verification |
 |---|---|---|
-| 1 | Copy, spacing, colour, a local fix that does not change what the user can do or what gets saved | `npm run lint` and `npm run build`; one screenshot if visual. Skip the rest of this skill. |
-| 2 | A feature or behavior change | Automatic, as part of the task: steps 1–6 for the changed behavior only. |
+| 1 | Copy, spacing, colour, a local fix that does not change what the user can do or what gets saved | `npm run lint` and `npm run build`; one screenshot if visual. Skip the rest of this skill. When unsure, or when the change touches `server/` or saving, use tier 2. |
+| 2 | A feature or behavior change | Automatic, as part of the task: steps 1–6 for the changed behavior only. A storage-format change also needs the real-data check below. |
 | 3 | Milestone sweep, run only when the owner asks | Walk `features/README.md` top to bottom and update the feature files. |
+
+### Storage-format changes
+
+Fixtures are hand-written and cannot show whether old records survive a new format. For any change to how `server/project-store.js` reads or writes data:
+
+1. Before editing, copy `data/projects.json` to `data/projects.backup-<date>.json` (git-ignored). The owner's `npm run dev` restarts the API on every server edit, so in-progress code runs against real data.
+2. After the change, `up --from-real-data`. It copies `data/projects.json` without its images (so nothing is sent to Gemini; image 404s are expected and not counted as problems) and records how the committed code (HEAD) reads it.
+3. `baseline-diff` must report no missing records. Then make one edit per project through the UI, `reload`, and run `baseline-diff` again: only the edits you made may appear.
 
 End a tier-2 report by suggesting a sweep when a feature area looks finished or the change touched shared foundations (`App.jsx` save queue, `server/project-store.js`, storage format).
 
-## 1. State the claim
+## 1. State the claim before editing
 
-Write the claim in one or two sentences a non-programmer can check: the condition, the action, and the observable result, for example "On the Reading Study page, adding a to-do and reloading shows it in the open list, and it is saved in projects.json." Vague claims ("search is better") need a measurable form. Ask the owner only when what they want is unclear; otherwise put the claim at the top of the report so they can check it afterwards.
+Write the claim before touching code, so it describes what the owner asked for rather than what got built. One or two sentences a non-programmer can check: the condition, the action, and the observable result, for example "On the Reading Study page, adding a to-do and reloading shows it in the open list, and it is saved in projects.json." Vague claims ("search is better") need a measurable form. Ask the owner only when what they want is unclear.
 
 ## 2. Launch and doctor
 
@@ -60,7 +68,7 @@ node $C screenshot todos-after-reload
 ```
 
 - Target elements by role and accessible name (`--role button --name "New board"`) or label. Fall back to `--css` only for things without a name.
-- Every command prints `saveState`, any `alert` text, `dialogs` answered, and `consoleErrors` (including failed HTTP requests). A non-empty `consoleErrors` or `saveState: "failed"` is a finding, not noise.
+- Every command prints `ok` and `problems`. Console errors, failed requests, a failed save, and error banners make `ok` false and are listed in `problems`. When the path under test is meant to fail (an empty title being refused), `ok: false` is the expected result: say so in the report rather than treating it as success or noise.
 - Confirm dialogs (deletes) are dismissed unless you pass `--dialog accept`; both cases are worth driving.
 - `eval` is for reading state after a user action. Performing the action itself through `eval` is not proof.
 
@@ -75,9 +83,9 @@ Viewports: `desktop` 1440×900, `narrow` 900×1000 (the stacked layout below 100
 
 ## 5. Report
 
-End with one verdict for the claim:
+Open with the owner's request in their own words, quoted as given, then the claim you wrote from it, so they can see at a glance whether the claim drifted from what they asked. Then one verdict for the claim:
 
-- **VERIFIED**: driven through the UI, the saved data agrees, no console errors.
+- **VERIFIED**: driven through the UI, the saved data agrees, no unexplained `problems`, and `down` reported `yourDataUntouched: true`.
 - **NOT VERIFIED**: the behavior is missing or wrong. Say what happened instead.
 - **INCONCLUSIVE**: the check could not run or could not distinguish the outcomes. Say what blocked it.
 
@@ -93,10 +101,10 @@ Once the claim is proven, stop. Broaden or repeat checks only when new changes, 
 ## 6. Clean up
 
 ```bash
-node $C down        # stops only the processes "up" started, deletes /tmp/dashboard-verify
+node $C down        # stops only the processes "up" started, deletes /tmp/dashboard-verify, rechecks data/projects.json
 ```
 
-Evidence stays in `.verify/evidence/<run>/` (git-ignored): screenshots plus `commands.jsonl`, one line per command with its result. Run `down` after failed attempts too, so no ports or processes are left behind.
+`down` checks each recorded pid is still a verification process before stopping it, and compares `data/projects.json` with its fingerprint from `up`; `yourDataUntouched: false` is a finding to report to the owner. Evidence stays in `.verify/evidence/<run>/` (git-ignored): screenshots plus `commands.jsonl`, one line per command with its result. Run `down` after failed attempts too, so no ports or processes are left behind.
 
 ## Feature map
 

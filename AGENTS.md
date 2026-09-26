@@ -5,7 +5,7 @@
 - Build a personal project dashboard that is useful on Mac and iPad while keeping the React code approachable for learning.
 - Work within the current JavaScript React/Vite frontend and local Express API. Prefer simple components, native browser features, and existing dependencies; add abstractions or tooling when the requested feature needs them.
 - Persist project content and layouts through the API to `data/projects.json` on the Mac. Keep saved state available after refresh and across clients; reserve browser storage for device-specific preferences.
-- Treat `data/projects.json` as user data. Preserve existing records when changing the storage format; write checks run against the verification skill's fixture data (see Verification).
+- Treat `data/projects.json` as user data. Preserve existing records when changing the storage format; write checks run against the verification skill's disposable copies (see Verification).
 - Keep UI changes usable with touch and keyboard. When responsive behavior changes, check the affected desktop, narrow, and iPad-sized layouts (see Verification).
 - For visual design work, read `DESIGN.md` and use it as the project's visual source of truth. Update it when intentionally changing the visual direction; skip it for unrelated code changes.
 
@@ -29,8 +29,8 @@
 
 The owner reviews behavior, not code, and the project is early: features change fast, so verification scales with the change instead of running in full every time. How to verify, what counts as proof, and how to report live in `.claude/skills/verify-dashboard/SKILL.md`; read it when a change reaches tier 2 or 3.
 
-- **Tier 1, small changes** (copy, spacing, colour, a local fix that does not change what the user can do or what gets saved): run `npm run lint` and `npm run build`, add one screenshot when it is visual, and move on.
-- **Tier 2, a feature or behavior change**: verify it automatically as part of the task. Drive only the changed behavior on the skill's disposable instance, read back the saved data, and report a VERIFIED, NOT VERIFIED, or INCONCLUSIVE verdict with its claim and evidence.
+- **Tier 1, small changes** (copy, spacing, colour, a local fix that does not change what the user can do or what gets saved): run `npm run lint` and `npm run build`, add one screenshot when it is visual, and move on. When unsure, or when the change touches `server/` or saving, it is tier 2.
+- **Tier 2, a feature or behavior change**: verify it automatically as part of the task. Drive only the changed behavior on the skill's disposable instance, read back the saved data, and report a VERIFIED, NOT VERIFIED, or INCONCLUSIVE verdict with its claim and evidence. A storage-format change also runs the skill's real-data check (`up --from-real-data`, `baseline-diff`), after backing up `data/projects.json` before the first edit.
 - **Tier 3, milestone sweeps**: run only when the owner asks. Walk the whole feature map and bring the feature files up to date. Suggest one at the end of a report when a feature area looks finished or the change touched shared foundations (the save queue in `App.jsx`, `server/project-store.js`, the storage format).
-- Ask the owner about the claim only when what they want is unclear; otherwise state the claim in the report so they can check it afterwards.
+- Write the claim before editing code. Ask the owner about it only when what they want is unclear; the report opens with their request quoted as given, followed by the claim, so drift is visible.
 - Verification always runs on the disposable instance (`control-dashboard.mjs up`, then `down`). The owner's `npm run dev` instance and `data/projects.json` stay untouched.

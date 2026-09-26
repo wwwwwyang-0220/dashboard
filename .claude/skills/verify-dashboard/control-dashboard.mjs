@@ -23,8 +23,11 @@ const VIEWPORTS = { desktop: [1440, 900], 'ipad-landscape': [1180, 820], 'ipad-p
 const HELP = `control-dashboard: drive a disposable dashboard instance and capture evidence.
 
 Instance (API :${PORTS.api}, web :${PORTS.web}, headless Chromium CDP :${PORTS.cdp}; your own dev server is never touched)
-  up [--semantic]          seed fixtures into /tmp/dashboard-verify and start API, Vite, and Chromium.
+  up [--semantic] [--from-real-data]
+                           seed fixtures into /tmp/dashboard-verify and start API, Vite, and Chromium.
                            --semantic uses your real Gemini key; default sends an invalid key so search stays keyword-only.
+                           --from-real-data copies data/projects.json (never its images, so nothing is sent to Gemini)
+                           and records how the committed code (HEAD) reads it, for storage-format checks.
   doctor                   read-only health check; exit 1 when the instance is not worth driving.
   down                     stop what "up" started and delete /tmp/dashboard-verify. Evidence stays.
 
@@ -41,6 +44,8 @@ Browser (Chromium, persistent page between commands)
 
 Side effects and other engines
   data [--project ID]             print the disposable projects.json the API wrote
+  baseline-diff                   --from-real-data only: compare what the API now serves with how HEAD read
+                                  the same file at "up"; lists missing, added, and changed records per project
   webkit-shot NAME [path] [--portrait]
                                   WebKit (Safari's engine) with an emulated iPad Pro 11 viewport and touch.
                                   Not a real iPad; report iPad-only behavior as unverified.
@@ -53,7 +58,9 @@ TARGET (combine to narrow; first match must be unique unless --nth is given)
   --within CSS              scope the search, e.g. --within '.todo-panel'
   --exact  --nth N
 
-Every command prints one JSON object: ok, what happened, saveState, and consoleErrors seen during the command.
+Every command prints one JSON object. "ok" is false when the command failed or produced problems: console errors,
+failed requests, a failed save, or an error banner. "problems" lists them; an expected failure (e.g. an empty title
+being refused) still reports ok: false, so say in the report that it was expected.
 Commands and results are appended to evidence/<run>/commands.jsonl.`
 
 const OPTIONS = {
@@ -61,7 +68,7 @@ const OPTIONS = {
   css: { type: 'string' }, within: { type: 'string' }, exact: { type: 'boolean' }, nth: { type: 'string' },
   value: { type: 'string' }, file: { type: 'string' }, dialog: { type: 'string' }, right: { type: 'boolean' },
   viewport: { type: 'string' }, full: { type: 'boolean' }, portrait: { type: 'boolean' }, project: { type: 'string' },
-  semantic: { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
+  semantic: { type: 'boolean' }, 'from-real-data': { type: 'boolean' }, help: { type: 'boolean', short: 'h' },
 }
 
 class UsageError extends Error {}
@@ -123,7 +130,29 @@ function start(name, command, args, env) {
   return { pid: child.pid, log }
 }
 
-async function up({ semantic }) {
+// Verification processes, recognised by command line so "down" never signals a pid the OS has since reused.
+const EXPECTED_COMMAND = { api: 'server/index.js', web: 'vite', chromium: '--remote-debugging-port' }
+const commandOf = (pid) => {
+  try {
+    return execFileSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf8' }).trim()
+  } catch {
+    return ''
+  }
+}
+
+// How the committed store code reads a data file: the reference for storage-format changes.
+async function readWithHead(dataFile) {
+  const store = path.join(RUN, 'baseline/project-store.mjs')
+  mkdirSync(path.dirname(store), { recursive: true })
+  writeFileSync(store, execFileSync('git', ['show', 'HEAD:server/project-store.js'], { cwd: ROOT, encoding: 'utf8' }))
+  process.env.PROJECTS_DATA_FILE = dataFile
+  const { listProjects } = await import(store)
+  return listProjects()
+}
+
+async function up(values) {
+  const { semantic } = values
+  const realData = Boolean(values['from-real-data'])
   const existing = readState()
   if (existing) throw new UsageError(`An instance is already recorded in ${STATE}. Run "doctor" to check it, or "down" to replace it.`)
   for (const [role, port] of Object.entries(PORTS)) {
@@ -135,8 +164,15 @@ async function up({ semantic }) {
   rmSync(RUN, { recursive: true, force: true })
   mkdirSync(path.join(RUN, 'logs'), { recursive: true })
   mkdirSync(path.dirname(OCR_BINARY), { recursive: true })
-  cpSync(path.join(SKILL, 'fixtures/projects.json'), path.join(RUN, 'data/projects.json'))
-  cpSync(path.join(SKILL, 'fixtures/files'), path.join(RUN, 'data/files'), { recursive: true })
+  if (realData) {
+    if (!existsSync(USER_DATA)) throw new UsageError(`${USER_DATA} does not exist; --from-real-data needs it.`)
+    cpSync(USER_DATA, path.join(RUN, 'data/projects.json'))
+    mkdirSync(path.join(RUN, 'data/files'), { recursive: true })
+    writeFileSync(path.join(RUN, 'baseline/head.json'), JSON.stringify(await readWithHead(path.join(RUN, 'data/projects.json')), null, 2))
+  } else {
+    cpSync(path.join(SKILL, 'fixtures/projects.json'), path.join(RUN, 'data/projects.json'))
+    cpSync(path.join(SKILL, 'fixtures/files'), path.join(RUN, 'data/files'), { recursive: true })
+  }
   const evidence = path.join(EVIDENCE_ROOT, new Date().toISOString().replace(/[:.]/g, '-'))
   mkdirSync(evidence, { recursive: true })
 
@@ -157,13 +193,18 @@ async function up({ semantic }) {
     '--headless=new', `--remote-debugging-port=${PORTS.cdp}`, `--user-data-dir=${path.join(RUN, 'chromium-profile')}`,
     '--no-first-run', '--no-default-browser-check', `--window-size=${VIEWPORTS.desktop.join(',')}`, 'about:blank',
   ], {})
-  const state = { startedAt: new Date().toISOString(), pids: { api: api.pid, web: web.pid, chromium: browser.pid }, evidence, semantic: Boolean(semantic), userData: fingerprint(USER_DATA) }
+  const state = { startedAt: new Date().toISOString(), pids: { api: api.pid, web: web.pid, chromium: browser.pid }, evidence, semantic: Boolean(semantic), realData, userData: fingerprint(USER_DATA) }
   writeFileSync(STATE, JSON.stringify(state, null, 2))
 
   await waitFor('API', async () => (await fetch(`http://127.0.0.1:${PORTS.api}/api/health`)).ok, api.log)
   await waitFor('Vite', async () => (await fetch(WEB)).ok, web.log)
   await waitFor('Chromium', async () => (await fetch(`http://127.0.0.1:${PORTS.cdp}/json/version`)).ok, browser.log)
-  return { started: state.pids, web: WEB, evidence, semanticSearch: state.semantic ? 'real Gemini key' : 'off (keyword and OCR only)', next: 'doctor, then open' }
+  return {
+    started: state.pids, web: WEB, evidence,
+    data: realData ? 'copy of data/projects.json without images; image requests 404 by design' : 'fixtures',
+    semanticSearch: state.semantic ? 'real Gemini key' : 'off (keyword and OCR only)',
+    next: realData ? 'doctor, then baseline-diff before and after the change' : 'doctor, then open',
+  }
 }
 
 async function doctor() {
@@ -183,27 +224,35 @@ async function doctor() {
     }
   }
   checks.apiHealth = await probe(`http://127.0.0.1:${PORTS.api}/api/health`)
-  checks.apiServesFixtures = await (async () => {
+  // Both the direct API and the browser's path through Vite must serve the scratch copy, not another API.
+  const scratchIds = JSON.parse(readFileSync(path.join(RUN, 'data/projects.json'), 'utf8')).map((project) => project.id).sort().join()
+  const servesScratch = async (base) => {
     try {
-      const projects = await (await fetch(`http://127.0.0.1:${PORTS.api}/api/projects`)).json()
-      return projects.every((project) => project.id.startsWith('verify-'))
+      const ids = (await (await fetch(`${base}/api/projects`)).json()).map((project) => project.id)
+      return ids.length > 0 && ids.sort().join() === scratchIds && (state.realData || ids.every((id) => id.startsWith('verify-')))
     } catch {
       return false
     }
-  })()
-  checks.webProxiesToVerifyApi = await probe(`${WEB}/api/health`)
+  }
+  checks.apiServesScratchData = await servesScratch(`http://127.0.0.1:${PORTS.api}`)
+  checks.webProxiesToVerifyApi = await servesScratch(WEB)
   checks.yourDataUntouched = JSON.stringify(fingerprint(USER_DATA)) === JSON.stringify(state.userData)
   const ok = ['api', 'web', 'chromium'].every((role) => checks[role].running && checks[role].portOwnedByUs)
-    && checks.apiHealth && checks.apiServesFixtures && checks.webProxiesToVerifyApi && checks.yourDataUntouched
-  return { ok, checks, evidence: state.evidence, ...(ok ? {} : { next: 'Read /tmp/dashboard-verify/logs/*.log. If a process died, run "down" then "up".' }) }
+    && checks.apiHealth && checks.apiServesScratchData && checks.webProxiesToVerifyApi && checks.yourDataUntouched
+  return { ok, checks, data: state.realData ? 'real-data copy' : 'fixtures', evidence: state.evidence, ...(ok ? {} : { next: 'Read /tmp/dashboard-verify/logs/*.log. If a process died, run "down" then "up".' }) }
 }
 
 async function down() {
   const state = readState()
   const stopped = []
+  const skipped = []
   if (state) {
     for (const [role, pid] of Object.entries(state.pids)) {
       if (!alive(pid)) continue
+      if (!commandOf(pid).includes(EXPECTED_COMMAND[role])) {
+        skipped.push({ role, pid, reason: 'pid now belongs to another program' })
+        continue
+      }
       try {
         process.kill(-pid, 'SIGTERM')
       } catch {
@@ -212,13 +261,23 @@ async function down() {
       stopped.push(role)
     }
     await new Promise((resolve) => setTimeout(resolve, 800))
-    for (const pid of Object.values(state.pids).flatMap(descendants)) {
-      if (alive(pid)) process.kill(pid, 'SIGKILL')
+    for (const [role, pid] of Object.entries(state.pids)) {
+      if (!stopped.includes(role)) continue
+      for (const child of descendants(pid)) {
+        if (alive(child)) process.kill(child, 'SIGKILL')
+      }
     }
   }
   const leftovers = Object.entries(PORTS).filter(([, port]) => state && Object.values(state.pids).flatMap(descendants).includes(listener(port)))
   rmSync(RUN, { recursive: true, force: true })
-  return { stopped, leftovers: leftovers.map(([role]) => role), evidenceKept: state?.evidence ?? null }
+  const yourDataUntouched = state ? JSON.stringify(fingerprint(USER_DATA)) === JSON.stringify(state.userData) : null
+  return {
+    ok: yourDataUntouched !== false && skipped.length === 0,
+    stopped, skipped, leftovers: leftovers.map(([role]) => role),
+    yourDataUntouched,
+    ...(yourDataUntouched === false ? { problem: 'data/projects.json changed while the instance ran. Something wrote to real data; report it to the owner.' } : {}),
+    evidenceKept: state?.evidence ?? null,
+  }
 }
 
 function requireState() {
@@ -335,7 +394,14 @@ async function browserCommand(command, positional, values) {
       result.value = await page.evaluate(positional[0])
     }
     Object.assign(result, await settle(page))
-    return { ...result, dialogs, consoleErrors }
+    const missingImage = (text) => state.realData && /\/api\/files\/|Failed to load resource: .*404/.test(text)
+    const problems = [
+      ...consoleErrors.filter((text) => !missingImage(text)).map((text) => `console: ${text}`),
+      ...(result.saveState === 'failed' ? ['save failed ("Not saved" shown)'] : []),
+      ...(result.alert ? [`error banner: ${result.alert}`] : []),
+    ]
+    const ignored = consoleErrors.filter(missingImage).length
+    return { ok: problems.length === 0, problems, ...result, dialogs, consoleErrors, ...(ignored ? { ignoredMissingImages: ignored } : {}) }
   } finally {
     await browser.close()
   }
@@ -365,6 +431,40 @@ async function webkitShot(positional, values) {
   }
 }
 
+async function baselineDiff() {
+  const state = requireState()
+  if (!state.realData) throw new UsageError('baseline-diff needs an instance started with "up --from-real-data".')
+  const head = JSON.parse(readFileSync(path.join(RUN, 'baseline/head.json'), 'utf8'))
+  const now = await (await fetch(`http://127.0.0.1:${PORTS.api}/api/projects`)).json()
+  const byId = (list) => new Map((list ?? []).map((entry) => [entry.id, entry]))
+  const compare = (before, after) => {
+    const [a, b] = [byId(before), byId(after)]
+    return {
+      missing: [...a.keys()].filter((id) => !b.has(id)),
+      added: [...b.keys()].filter((id) => !a.has(id)),
+      changed: [...a.keys()].filter((id) => b.has(id) && JSON.stringify(a.get(id)) !== JSON.stringify(b.get(id))),
+    }
+  }
+  const nowById = byId(now)
+  const projects = head.map((project) => {
+    const current = nowById.get(project.id)
+    if (!current) return { id: project.id, missing: true }
+    const fields = Object.fromEntries(['todos', 'items', 'boards'].map((field) => [field, compare(project[field], current[field])]))
+    const meta = ['title', 'description'].filter((field) => project[field] !== current[field])
+    return { id: project.id, ...(meta.length ? { changedFields: meta } : {}), ...fields }
+  })
+  const lists = ['todos', 'items', 'boards']
+  const lost = projects.some((project) => project.missing || lists.some((field) => project[field].missing.length))
+  const differs = projects.filter((project) => project.missing || project.changedFields || lists.some((field) => Object.values(project[field]).some((ids) => ids.length)))
+  return {
+    ok: !lost,
+    addedProjects: now.filter((project) => !head.some((entry) => entry.id === project.id)).map((project) => project.id),
+    projects: differs,
+    unchanged: projects.length - differs.length,
+    ...(lost ? { problem: 'Records HEAD could read are missing now. Treat as data loss unless the change removes them on purpose.' } : {}),
+  }
+}
+
 function data(values) {
   const file = path.join(requireState() && RUN, 'data/projects.json')
   const projects = JSON.parse(readFileSync(file, 'utf8'))
@@ -380,6 +480,7 @@ async function main() {
   else if (command === 'doctor') result = await doctor()
   else if (command === 'down') result = await down()
   else if (command === 'data') result = data(values)
+  else if (command === 'baseline-diff') result = await baselineDiff()
   else if (command === 'webkit-shot') result = await webkitShot(rest, values)
   else if (['open', 'click', 'fill', 'press', 'upload', 'reload', 'snapshot', 'screenshot', 'eval'].includes(command)) result = await browserCommand(command, rest, values)
   else throw new UsageError(`Unknown command "${command}". Run --help.`)
