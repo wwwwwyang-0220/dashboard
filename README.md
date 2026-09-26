@@ -16,7 +16,7 @@ Open the URL printed by Vite. The API and frontend run together with `npm run de
 
 `data/projects.json` contains personal dashboard content and is excluded from Git. Copy the example only on a fresh checkout; do not overwrite an existing data file. Changes saved through the dashboard persist across refreshes and clients using this Mac's API.
 
-The sidebar can be hidden or resized, and its footer switches between system, light, and dark appearance; those device preferences are stored in the browser. Search opens from the sidebar, the top strip, or ⌘K/Ctrl+K. Typing shows quick matches by title; Enter searches everything — project titles, note titles and bodies, image titles, text recognized in images, and what images show — across projects using the local API. OCR runs on the Mac after an image item is saved, and each image is also embedded once with Google's `gemini-embedding-2` so it can be found by description. Search by meaning needs a Gemini API key and a network connection; without them search falls back to keywords and image text. `todo/search.md` records the design.
+The sidebar can be hidden or resized, and its footer switches between system, light, and dark appearance; those device preferences are stored in the browser. Search opens from the sidebar, the top strip, or ⌘K/Ctrl+K. Typing shows quick matches by title; Enter searches everything — project titles, note titles and bodies, image titles, text recognized in images, and what images show — across projects using the local API. OCR runs on the Mac after an image item is saved, and each image is also embedded once with Google's `gemini-embedding-2` so it can be found by description. Search by meaning needs a Gemini API key and a network connection; without them search falls back to keywords and image text.
 
 Each project page centres on a library of notes and images, grouped by date, with a quick-capture field on top; a rail beside it holds the to-do list and saved boards. Selecting library items (hover a card's checkbox, or right-click it) puts them on a board, which lays them side by side on a 24-column grid for comparison and keeps that arrangement. Uploaded images are stored in `data/files/`, which is also excluded from Git.
 
@@ -31,6 +31,18 @@ Each project page centres on a library of notes and images, grouped by date, wit
 - `DESIGN.md` records the visual direction, the design tokens, and links the Figma wireframes. The tokens live in `src/index.css` with light and dark values; components use them instead of raw colours.
 
 Current scope: desktop first, with layouts that stack below 1000px; iPad touch arrangement uses the same pointer handling but has not been tested on a device. There is no in-app control to create or delete a project; the example JSON shows the starting data shape. Use disposable `PROJECTS_DATA_FILE`, `PROJECTS_FILES_DIR`, `SEARCH_INDEX_FILE`, and `EMBEDDING_INDEX_FILE` paths for write checks so personal project content is not changed during testing. `API_PORT` and `API_PROXY_TARGET` can point the API and Vite proxy at a disposable test instance.
+
+## Search decisions
+
+These choices were tested on real dashboard figures; keep them unless new evidence says otherwise.
+
+- The search box is for describing content; the project library covers picking a known item. Typing shows quick title and project matches; Enter runs the full search, whose list sits under “Results for ‘…’”.
+- Full search fuses MiniSearch BM25 (titles, project names, note text, OCR) with the ten images closest to the query embedding by Reciprocal Rank Fusion. Ties go to the keyword rank: it reflects exact labels and project names, while `gemini-embedding-2` sees a downscaled image (258 tokens). Project names in the query are the main way to separate look-alike figures from different projects.
+- Image embedding is always on and sends only the image, on Gemini's paid tier. 768 dimensions ranked the test figures the same as 3072.
+- Queries are expected in English; offline search does not translate Chinese queries to English figure labels.
+- No reranker. Fusion alone put the intended figure first in every test query. Add one only if real searches miss in ways fusion cannot fix, and then compare a hosted model (TypeSafe Jev) with a local one (for example Laya) on dashboard figures, sending only text.
+- Move keyword search to SQLite FTS5 if building the in-memory index at API start becomes noticeably slow or memory grows clearly; FTS5 lacks MiniSearch's fuzzy matching for OCR misreads.
+- The Keychain is locked to an API started in a detached tmux session or cron; use `GEMINI_API_KEY` or `~/.config/gemini/key` there.
 
 ## Checks
 
