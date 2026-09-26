@@ -10,6 +10,7 @@
     "start:api": "node server/index.js",
     "build": "vite build",
     "lint": "oxlint",
+    "verify:browsers": "playwright-core install --no-shell chromium webkit",
     "preview": "vite preview"
   },
   "dependencies": {

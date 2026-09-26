@@ -17,6 +17,7 @@ const USER_DATA = path.join(ROOT, 'data/projects.json')
 const OCR_BINARY = path.join(os.homedir(), 'Library/Caches/dashboard-verify/vision-ocr')
 const PORTS = { api: 3101, web: 5273, cdp: 9333 }
 const WEB = `http://127.0.0.1:${PORTS.web}`
+const PLAYWRIGHT_VERSION = JSON.parse(readFileSync(path.join(ROOT, 'node_modules/playwright-core/package.json'), 'utf8')).version
 const VIEWPORTS = { desktop: [1440, 900], 'ipad-landscape': [1180, 820], 'ipad-portrait': [820, 1180], narrow: [900, 1000] }
 
 const HELP = `control-dashboard: drive a disposable dashboard instance and capture evidence.
@@ -89,6 +90,16 @@ const descendants = (pid) => {
     return [pid]
   }
 }
+// Browsers come from Playwright's shared cache (~/Library/Caches/ms-playwright, or PLAYWRIGHT_BROWSERS_PATH).
+// Check before launching so a cleared cache fails with the fix instead of a spawn error.
+function requireBrowser(browserType, name) {
+  const executable = browserType.executablePath()
+  if (!existsSync(executable)) {
+    throw new UsageError(`${name} for playwright-core ${PLAYWRIGHT_VERSION} is not installed (expected ${executable}). Run "npm run verify:browsers", then retry.`)
+  }
+  return executable
+}
+
 const fingerprint = (file) => existsSync(file) ? (({ size, mtimeMs }) => ({ size, mtimeMs }))(statSync(file)) : null
 
 async function waitFor(what, check, log, timeout = 40000) {
@@ -120,6 +131,7 @@ async function up({ semantic }) {
     if (owner) throw new UsageError(`Port ${port} (${role}) is held by pid ${owner}, which "up" did not start. Stop it or change PORTS in control-dashboard.mjs.`)
   }
   const { chromium } = await import('playwright-core')
+  const chromiumExecutable = requireBrowser(chromium, 'Chromium')
   rmSync(RUN, { recursive: true, force: true })
   mkdirSync(path.join(RUN, 'logs'), { recursive: true })
   mkdirSync(path.dirname(OCR_BINARY), { recursive: true })
@@ -141,7 +153,7 @@ async function up({ semantic }) {
   const web = start('web', node, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(PORTS.web), '--strictPort'], {
     API_PROXY_TARGET: `http://127.0.0.1:${PORTS.api}`,
   })
-  const browser = start('chromium', chromium.executablePath(), [
+  const browser = start('chromium', chromiumExecutable, [
     '--headless=new', `--remote-debugging-port=${PORTS.cdp}`, `--user-data-dir=${path.join(RUN, 'chromium-profile')}`,
     '--no-first-run', '--no-default-browser-check', `--window-size=${VIEWPORTS.desktop.join(',')}`, 'about:blank',
   ], {})
@@ -334,6 +346,7 @@ async function webkitShot(positional, values) {
   if (!positional[0]) throw new UsageError('webkit-shot needs a NAME.')
   const { webkit, devices } = await import('playwright-core')
   const device = devices[values.portrait ? 'iPad Pro 11' : 'iPad Pro 11 landscape']
+  requireBrowser(webkit, 'WebKit')
   const browser = await webkit.launch()
   try {
     const page = await (await browser.newContext(device)).newPage()

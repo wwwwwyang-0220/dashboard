@@ -16,6 +16,8 @@ node $C --help
 
 Node comes from fnm. If `node` is missing, `export PATH=~/.local/share/fnm/node-versions/v24.21.0/installation/bin:$PATH`.
 
+The browsers are Playwright's Chromium and WebKit builds pinned to `playwright-core` in `package.json`, stored in `~/Library/Caches/ms-playwright` (or `PLAYWRIGHT_BROWSERS_PATH`). When `up` or `webkit-shot` reports one missing, for example after the cache was cleared or `playwright-core` was upgraded, run `npm run verify:browsers` (under a minute; about 700 MB on disk) and retry.
+
 ## 0. Match the effort to the change
 
 The project is early and features change fast, so pick the tier before starting and do only what it asks.
