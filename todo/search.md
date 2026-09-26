@@ -1,6 +1,6 @@
 # Search
 
-Status: phases 1 and 2 implemented; image understanding remains planned.
+Status: phases 1 and 2 implemented; multimodal retrieval evaluation remains planned.
 
 ## Product contract
 
@@ -14,15 +14,15 @@ Status: phases 1 and 2 implemented; image understanding remains planned.
 
 1. Done: add a backend search API and a unified result interface. Search project titles, note titles and bodies, and image titles locally. Return stable result IDs, types, project IDs, and useful result context. The board drawer retains its contextual filter for choosing items to add to that board.
 2. Done: process saved images asynchronously with macOS Vision OCR. Search recognized labels and other text offline. Keep the OCR index outside project data, remove entries when images are deleted, and support a full rebuild and retry. Recognition uses the whole image plus automatically sized overlapping regions for large images; it does not require per-image settings.
-3. Evaluate cloud image analysis and embedding APIs on representative research material: three-line tables, bar and line charts, histograms, and statistical distributions. Extract searchable descriptions and structure such as variables, axes, legends, comparisons, and trends. Keep the original image and raw OCR as the evidence for any generated description or numeric claim.
-4. Add semantic retrieval only after that evaluation. Generate image or extracted-content embeddings when content is added or changes. Generate a compatible text-query embedding for each new semantic query, then perform vector lookup locally and combine those results with keyword and OCR matches. Keep keyword and OCR results usable when the model API is unavailable.
+3. Evaluate multimodal embedding APIs for text-to-image retrieval on representative research material: three-line tables, bar and line charts, histograms, and statistical distributions. Use compatible image and text encoders from the same embedding model. Test whether natural-language queries retrieve the intended image without asking a model to explain the chart. Compare against title, project, and OCR search, including queries with extra conversational words and Chinese descriptions. If image embeddings miss a needed visual distinction, evaluate minimal searchable image tags before adding broader image analysis.
+4. Add semantic retrieval after that evaluation. Embed each saved image once and each new text query with the compatible encoder, keep image vectors and vector matching on the Mac, and combine vector candidates with local title, project, and OCR candidates. Evaluate a text-only judgment model such as TypeSafe Jev for reranking a bounded shortlist using the query, project identity, title, OCR text, and retrieval signals; do not send raw image vectors to Jev or expect it to inspect the image. Keep keyword and OCR results usable when the model API is unavailable.
 
 ## Storage and operations
 
-- Keep `data/projects.json` and `data/files/` as the canonical project content for now. Store OCR, generated descriptions, model versions, and vectors as derived search data outside the project API payload; allow the index to be rebuilt.
+- Keep `data/projects.json` and `data/files/` as the canonical project content for now. Store OCR, optional image tags, model versions, and vectors as derived search data outside the project API payload; allow the index to be rebuilt.
 - Run image processing asynchronously so upload completion does not wait for OCR or model calls. Track pending, ready, and failed indexing work and allow retries.
-- Do not select a model or vector engine solely from general benchmarks. Compare retrieval quality, Chinese and English queries, latency, cost, and indexing load using actual dashboard images before choosing a provider or changing the primary storage format.
-- Use `Figure_3` as a retrieval example: OCR should find `Related Probe`, `Accuracy`, and `YA Strategy`. The last query is a keyword match across recognized lines, not proof that the system knows which bar represents YA Strategy. Future chart analysis must preserve panel, axis, and condition relationships and mark missing legends or ambiguous abbreviations as unknown.
+- Do not select an embedding model, reranker, or vector engine solely from general benchmarks. Compare top-result quality, Chinese and English queries, no-match behavior, latency, cost, and indexing load using actual dashboard images before choosing a provider or changing the primary storage format.
+- Use `Figure_3` as a retrieval example: OCR finds `Related Probe`, `Accuracy`, and `YA Strategy`, but the current strict keyword matcher misses a longer query such as “the YA and OA bars for Intact Probe in Strategy Project.” Candidate retrieval must include project context and tolerate extra words; multimodal similarity and reranking should bring the image near the top. A match means “this is likely the image the user wants to inspect,” not a claim about bar heights or statistical meaning.
 
 ## Current state
 
