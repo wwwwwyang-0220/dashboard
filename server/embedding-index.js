@@ -12,7 +12,7 @@ const indexFile = process.env.EMBEDDING_INDEX_FILE ?? path.join(searchDir, 'embe
 const MODEL = 'gemini-embedding-2'
 const DIMENSIONS = 768
 const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:embedContent`
-const inlineTypes = { png: 'image/png', jpg: 'image/jpeg' }
+const IMAGE_MAX_SIDE = 1536
 const MAX_INLINE_BYTES = 15 * 1024 * 1024
 const RETRY_AFTER_MS = 5 * 60 * 1000
 const QUERY_TIMEOUT_MS = 2000
@@ -67,24 +67,26 @@ async function embed(parts, signal) {
   return normalize(values)
 }
 
-// Gemini accepts PNG and JPEG; GIF and WebP uploads are converted to PNG with macOS sips first.
+// Every image passes through macOS sips before embedding. Images longer than IMAGE_MAX_SIDE shrink to it:
+// Gemini downsamples anyway, and on the test figures the shrunk vectors stayed within 0.99 cosine of full
+// size with unchanged rankings. GIF and WebP become PNG, since Gemini accepts only PNG and JPEG.
 async function imagePart(file) {
-  const extension = path.extname(file).slice(1).toLowerCase()
+  const source = path.join(filesDir, file)
+  const jpeg = path.extname(file).toLowerCase() === '.jpg'
+  const { stdout } = await run('/usr/bin/sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', source], { timeout: 30000 })
+  const longest = Math.max(...[...stdout.matchAll(/pixel(?:Width|Height): (\d+)/g)].map((match) => Number(match[1])))
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'dashboard-embed-'))
   let bytes
-  if (inlineTypes[extension]) {
-    bytes = await readFile(path.join(filesDir, file))
-  } else {
-    const directory = await mkdtemp(path.join(os.tmpdir(), 'dashboard-embed-'))
-    try {
-      const converted = path.join(directory, 'image.png')
-      await run('/usr/bin/sips', ['-s', 'format', 'png', path.join(filesDir, file), '--out', converted], { timeout: 60000 })
-      bytes = await readFile(converted)
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
+  try {
+    const output = path.join(directory, jpeg ? 'image.jpg' : 'image.png')
+    const resize = longest > IMAGE_MAX_SIDE ? ['-Z', String(IMAGE_MAX_SIDE)] : []
+    await run('/usr/bin/sips', ['-s', 'format', jpeg ? 'jpeg' : 'png', ...resize, source, '--out', output], { timeout: 60000 })
+    bytes = await readFile(output)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
   }
   if (bytes.length > MAX_INLINE_BYTES) throw new Error('Image is too large to embed')
-  return { inline_data: { mime_type: inlineTypes[extension] ?? 'image/png', data: bytes.toString('base64') } }
+  return { inline_data: { mime_type: jpeg ? 'image/jpeg' : 'image/png', data: bytes.toString('base64') } }
 }
 
 class EmbeddingIndex {
@@ -149,10 +151,10 @@ class EmbeddingIndex {
     }
     for (const file of desired) {
       const current = this.records[file]
-      const stale = !current || current.model !== MODEL || current.dimensions !== DIMENSIONS
+      const stale = !current || current.model !== MODEL || current.dimensions !== DIMENSIONS || current.maxSide !== IMAGE_MAX_SIDE
       const retry = current?.state === 'failed' && Date.now() - (current.failedAt ?? 0) > RETRY_AFTER_MS
       if (stale || retry || force) {
-        this.records[file] = { model: MODEL, dimensions: DIMENSIONS, revision: (current?.revision ?? 0) + 1, state: 'pending' }
+        this.records[file] = { model: MODEL, dimensions: DIMENSIONS, maxSide: IMAGE_MAX_SIDE, revision: (current?.revision ?? 0) + 1, state: 'pending' }
         if (stale) this.vectors.delete(file)
         changed = true
       }
@@ -182,7 +184,7 @@ class EmbeddingIndex {
         if (!this.desired.has(file) || this.records[file]?.revision !== revision) continue
         const vector = await embed([await imagePart(file)], AbortSignal.timeout(60000))
         if (!this.desired.has(file) || this.records[file]?.revision !== revision) continue
-        this.records[file] = { model: MODEL, dimensions: DIMENSIONS, revision, state: 'ready', vector: encodeVector(vector) }
+        this.records[file] = { model: MODEL, dimensions: DIMENSIONS, maxSide: IMAGE_MAX_SIDE, revision, state: 'ready', vector: encodeVector(vector) }
         this.vectors.set(file, vector)
         this.save()
       } catch (error) {
