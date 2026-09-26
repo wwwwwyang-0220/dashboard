@@ -14,6 +14,14 @@ npm run dev
 
 Open the URL printed by Vite. The API and frontend run together with `npm run dev`.
 
+To reach the dev server through another hostname, such as a Tailscale name, list it in a git-ignored `.env.local`:
+
+```sh
+echo 'DASHBOARD_ALLOWED_HOSTS=my-mac.example.ts.net' > .env.local
+```
+
+Separate several hosts with commas. Without it, Vite accepts only localhost.
+
 `data/projects.json` contains personal dashboard content and is excluded from Git. Copy the example only on a fresh checkout; do not overwrite an existing data file. Changes saved through the dashboard persist across refreshes and clients using this Mac's API.
 
 The sidebar can be hidden or resized, and its footer switches between system, light, and dark appearance; those device preferences are stored in the browser. Search opens from the sidebar, the top strip, or ⌘K/Ctrl+K. Typing shows quick matches by title; Enter searches everything — project titles, note titles and bodies, image titles, text recognized in images, and what images show — across projects using the local API. OCR runs on the Mac after an image item is saved, and each image is also embedded once with Google's `gemini-embedding-2` so it can be found by description. Search by meaning needs a Gemini API key and a network connection; without them search falls back to keywords and image text.
