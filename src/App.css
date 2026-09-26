@@ -107,6 +107,16 @@
 .search-result-title { font-size: 14px; font-weight: 500; }
 .search-result-snippet { color: var(--text-2); font-size: 13px; }
 .search-result-meta { color: var(--text-3); font-size: 12px; }
+.search-dialog-submit { display: inline-flex; align-items: center; gap: 6px; flex: none; min-height: 32px; padding: 0 10px; color: var(--text-2); background: var(--fill-1); border: 1px solid var(--line-1); border-radius: var(--radius-md); font-size: 13px; }
+.search-dialog-submit:hover:not(:disabled) { color: var(--text-1); background: var(--fill-2); }
+.search-dialog-submit:disabled { color: var(--text-4); background: transparent; }
+.search-dialog-submit kbd { color: inherit; font: inherit; }
+.search-dialog-heading { margin: 12px 12px 0; color: var(--text-1); font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.search-dialog-note { margin: 4px 12px 8px; color: var(--text-3); font-size: 12px; }
+.search-quick { padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--line-1); }
+.search-result.is-compact { min-height: 44px; padding: 6px 12px; }
+.search-result.is-compact .search-result-thumb { width: 32px; height: 28px; }
+.search-result.is-compact .search-result-title { color: var(--text-2); font-weight: 400; }
 
 .main-column { --page-inline: max(32px, (100% - 1296px) / 2); }
 .project-header { position: relative; flex: none; width: 100%; padding: 56px var(--page-inline) 8px; }

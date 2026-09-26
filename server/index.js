@@ -1,6 +1,7 @@
 import express from 'express'
 import path from 'node:path'
 
+import { embeddingIndex } from './embedding-index.js'
 import { ocrIndex } from './ocr-index.js'
 import {
   filesDir,
@@ -14,11 +15,13 @@ import {
   updateProjectItems,
   updateProjectTodos,
 } from './project-store.js'
-import { searchProjects } from './search.js'
+import { quickSearch, searchProjects } from './search.js'
 
 const app = express()
 const host = '127.0.0.1'
 const port = Number(process.env.API_PORT ?? 3001)
+// Semantic similarity is relative, so only the closest images join the keyword results.
+const SEMANTIC_CANDIDATES = 10
 
 app.disable('x-powered-by')
 app.use(express.json({ limit: '2mb' }))
@@ -38,16 +41,37 @@ app.get('/api/search', async (request, response) => {
     return
   }
   const projects = await listProjects()
-  const indexing = await ocrIndex.sync(projects)
-  response.json({ ...searchProjects(projects, query, 60, ocrIndex.records), indexing })
+  const ocr = await ocrIndex.sync(projects)
+  if (request.query.mode === 'quick') {
+    response.json({ ...quickSearch(projects, query, 5, ocrIndex.records), indexing: ocr })
+    return
+  }
+  const embeddings = await embeddingIndex.sync(projects)
+  let semanticFiles = []
+  let semantic = 'ok'
+  if (query.trim()) {
+    try {
+      semanticFiles = embeddingIndex.rank(await embeddingIndex.embedQuery(query), SEMANTIC_CANDIDATES)
+    } catch (error) {
+      semantic = 'unavailable'
+      console.warn('Semantic search unavailable:', error.message)
+    }
+  }
+  response.json({
+    ...searchProjects(projects, query, 60, ocrIndex.records, semanticFiles),
+    indexing: { ocr, embeddings, pending: ocr.pending + embeddings.pending },
+    semantic,
+  })
 })
 
 app.get('/api/search/index', async (_request, response) => {
-  response.json(await ocrIndex.sync(await listProjects()))
+  const projects = await listProjects()
+  response.json({ ocr: await ocrIndex.sync(projects), embeddings: await embeddingIndex.sync(projects) })
 })
 
 app.post('/api/search/rebuild', async (_request, response) => {
-  response.status(202).json(await ocrIndex.sync(await listProjects(), { force: true }))
+  const projects = await listProjects()
+  response.status(202).json({ ocr: await ocrIndex.sync(projects, { force: true }), embeddings: await embeddingIndex.sync(projects, { force: true }) })
 })
 
 app.put('/api/projects/:id', async (request, response) => {
@@ -61,7 +85,9 @@ app.put('/api/projects/:id/todos', async (request, response) => {
 
 app.put('/api/projects/:id/items', async (request, response) => {
   const project = await updateProjectItems(request.params.id, request.body?.items)
-  await ocrIndex.sync(await listProjects())
+  const projects = await listProjects()
+  await ocrIndex.sync(projects)
+  await embeddingIndex.sync(projects)
   response.json(project)
 })
 
@@ -116,6 +142,7 @@ app.listen(port, host, () => {
   listProjects()
     .then(async (projects) => {
       await ocrIndex.sync(projects)
+      await embeddingIndex.sync(projects)
       searchProjects(projects, '', 0, ocrIndex.records)
     })
     .catch((error) => console.error('Could not start search indexing:', error))

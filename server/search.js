@@ -2,6 +2,7 @@ import MiniSearch from 'minisearch'
 
 const searchable = (value) => String(value ?? '').toLocaleLowerCase()
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'word' })
+const RRF_K = 60
 const stopWords = new Set(['a', 'an', 'and', 'at', 'by', 'for', 'from', 'in', 'of', 'on', 'or', 'the', 'to', 'with'])
 
 // Intl.Segmenter splits punctuation-joined labels (FA、Addition) and Chinese runs into words.
@@ -89,10 +90,35 @@ export class SearchIndex {
     this.documents = next
   }
 
-  search(query, limit = 60) {
-    const matches = this.index.search(query)
+  // Full search merges the BM25 ranking with the semantic image ranking by Reciprocal Rank Fusion;
+  // ties go to the better keyword rank, which reflects exact labels and project names. Quick search looks only at titles and project names.
+  search(query, limit = 60, { fields, semanticFiles = [] } = {}) {
+    const matches = query.trim() ? this.index.search(query, fields ? { fields } : {}) : []
     matches.sort((a, b) => b.score - a.score || this.documents.get(a.id).title.localeCompare(this.documents.get(b.id).title))
-    const results = matches.slice(0, limit).map(({ id, terms }) => {
+    const imageIds = new Map()
+    for (const document of this.documents.values()) {
+      if (document.type === 'image') imageIds.set(document.file, [...(imageIds.get(document.file) ?? []), document.id])
+    }
+    const fused = new Map()
+    const entry = (id) => {
+      if (!fused.has(id)) fused.set(id, { id, score: 0, keywordRank: Infinity, semanticRank: Infinity, terms: [] })
+      return fused.get(id)
+    }
+    matches.forEach(({ id, terms }, rank) => {
+      const current = entry(id)
+      current.score += 1 / (RRF_K + rank + 1)
+      current.terms = terms
+      current.keywordRank = rank
+    })
+    semanticFiles.forEach((file, rank) => {
+      for (const id of imageIds.get(file) ?? []) {
+        const current = entry(id)
+        current.score += 1 / (RRF_K + rank + 1)
+        current.semanticRank = rank
+      }
+    })
+    const ranked = [...fused.values()].sort((a, b) => b.score - a.score || a.keywordRank - b.keywordRank || a.semanticRank - b.semanticRank)
+    const results = ranked.slice(0, limit).map(({ id, terms }) => {
       const document = this.documents.get(id)
       const matchedInContent = terms.filter((term) => searchable(document.content).includes(term))
       const snippet = document.type === 'project' ? document.snippet
@@ -108,14 +134,20 @@ export class SearchIndex {
         ...(document.type === 'image' ? { file: document.file } : {}),
       }
     })
-    return { results, total: matches.length }
+    return { results, total: ranked.length }
   }
 }
 
 const sharedIndex = new SearchIndex()
 
-export function searchProjects(projects, query, limit = 60, ocrRecords = {}) {
+export function searchProjects(projects, query, limit = 60, ocrRecords = {}, semanticFiles = []) {
   sharedIndex.sync(projects, ocrRecords)
   if (!query.trim()) return { results: [], total: 0 }
-  return sharedIndex.search(query, limit)
+  return sharedIndex.search(query, limit, { semanticFiles })
+}
+
+export function quickSearch(projects, query, limit = 5, ocrRecords = {}) {
+  sharedIndex.sync(projects, ocrRecords)
+  if (!query.trim()) return { results: [], total: 0 }
+  return sharedIndex.search(query, limit, { fields: ['title', 'project'] })
 }

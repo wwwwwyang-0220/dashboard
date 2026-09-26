@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { searchProjects } from '../server/search.js'
+import { quickSearch, searchProjects } from '../server/search.js'
 
 const projects = [
   {
@@ -97,4 +97,26 @@ test('keeps the index in step with edits and deletions', () => {
   assert.equal(ids[0], 'fig-3')
   assert.ok(!ids.includes('fig-2'))
   assert.equal(searchProjects(figures, 'figure_2', 60, figureText).results[0].id, 'fig-2')
+})
+
+test('fuses keyword and semantic rankings, breaking ties toward the keyword rank', () => {
+  const ids = (query, semanticFiles) => searchProjects(figures, query, 60, figureText, semanticFiles).results.map((result) => result.id)
+  // Keyword and semantic rankings disagree on the top two, so their fused scores tie; the keyword order wins.
+  const keywordOrder = ids('fa addition division', []).slice(0, 2)
+  assert.equal(ids('fa addition division', [...keywordOrder].reverse().map((id) => `f${id.slice(-1)}.png`))[0], keywordOrder[0])
+  // An image both rankings put first stays first.
+  assert.equal(ids('the YA and OA bars for Intact Probe in Strategy Project', ['f3.png', 'f4.png'])[0], 'fig-3')
+  // Images found only by meaning still appear, after agreeing matches.
+  const semanticOnly = ids('bars comparing groups', ['f4.png'])
+  assert.ok(semanticOnly.includes('fig-4'))
+  assert.deepEqual(searchProjects(figures, 'unmatched words', 60, figureText, ['f4.png']).results.map((result) => result.id), ['fig-4'])
+})
+
+test('quick search matches titles and project names only', () => {
+  const ids = (query) => quickSearch(figures, query, 5, figureText).results.map((result) => result.id)
+  assert.deepEqual(ids('accuracy'), [])
+  assert.equal(ids('strategy')[0], 'strategy')
+  assert.ok(ids('strategy').includes('fig-3'))
+  assert.equal(ids('figure_6')[0], 'fig-6')
+  assert.ok(quickSearch(figures, 'project', 2, figureText).results.length <= 2)
 })
