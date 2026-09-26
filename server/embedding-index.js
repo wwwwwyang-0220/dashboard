@@ -12,7 +12,7 @@ const indexFile = process.env.EMBEDDING_INDEX_FILE ?? path.join(searchDir, 'embe
 const MODEL = 'gemini-embedding-2'
 const DIMENSIONS = 768
 const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:embedContent`
-const inlineTypes = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' }
+const inlineTypes = { png: 'image/png', jpg: 'image/jpeg' }
 const MAX_INLINE_BYTES = 15 * 1024 * 1024
 const RETRY_AFTER_MS = 5 * 60 * 1000
 const QUERY_TIMEOUT_MS = 2000
@@ -212,15 +212,15 @@ class EmbeddingIndex {
     return vector
   }
 
-  // Image files ordered by cosine similarity to the query (vectors are unit length).
-  rank(queryVector, limit) {
+  // Image files at least minScore similar to the query, closest first (vectors are unit length).
+  rank(queryVector, limit, minScore) {
     const scored = []
     for (const file of this.desired) {
       const vector = this.vectors.get(file)
       if (!vector) continue
       let score = 0
       for (let i = 0; i < vector.length; i += 1) score += vector[i] * queryVector[i]
-      scored.push({ file, score })
+      if (score >= minScore) scored.push({ file, score })
     }
     scored.sort((a, b) => b.score - a.score)
     return scored.slice(0, limit).map(({ file }) => file)

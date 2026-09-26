@@ -20,8 +20,11 @@ import { quickSearch, searchProjects } from './search.js'
 const app = express()
 const host = '127.0.0.1'
 const port = Number(process.env.API_PORT ?? 3001)
-// Semantic similarity is relative, so only the closest images join the keyword results.
+// Only the closest images join the keyword results, and only above a similarity floor. On the test
+// figures, intended images scored 0.66–0.71 and unrelated or absent-figure queries at most 0.59; recalibrate
+// the floor if relevant images start going missing as the library grows.
 const SEMANTIC_CANDIDATES = 10
+const SEMANTIC_MIN_SIMILARITY = 0.6
 
 app.disable('x-powered-by')
 app.use(express.json({ limit: '2mb' }))
@@ -43,7 +46,7 @@ app.get('/api/search', async (request, response) => {
   const projects = await listProjects()
   const ocr = await ocrIndex.sync(projects)
   if (request.query.mode === 'quick') {
-    response.json({ ...quickSearch(projects, query, 5, ocrIndex.records), indexing: ocr })
+    response.json(quickSearch(projects, query, 5, ocrIndex.records))
     return
   }
   const embeddings = await embeddingIndex.sync(projects)
@@ -51,7 +54,7 @@ app.get('/api/search', async (request, response) => {
   let semantic = 'ok'
   if (query.trim()) {
     try {
-      semanticFiles = embeddingIndex.rank(await embeddingIndex.embedQuery(query), SEMANTIC_CANDIDATES)
+      semanticFiles = embeddingIndex.rank(await embeddingIndex.embedQuery(query), SEMANTIC_CANDIDATES, SEMANTIC_MIN_SIMILARITY)
     } catch (error) {
       semantic = 'unavailable'
       console.warn('Semantic search unavailable:', error.message)

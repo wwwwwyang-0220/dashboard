@@ -11,6 +11,7 @@ const sourceFile = fileURLToPath(new URL('./vision-ocr.swift', import.meta.url))
 const indexFile = process.env.SEARCH_INDEX_FILE ?? path.join(path.dirname(filesDir), 'search', 'index.json')
 const binaryFile = process.env.OCR_BINARY_FILE ?? path.join(path.dirname(indexFile), 'vision-ocr')
 const OCR_VERSION = 1
+const RETRY_AFTER_MS = 5 * 60 * 1000
 
 class OcrIndex {
   constructor() {
@@ -63,7 +64,8 @@ class OcrIndex {
     }
     for (const file of desired) {
       const current = this.records[file]
-      if (!current || current.version !== OCR_VERSION || force) {
+      const retry = current?.state === 'failed' && Date.now() - (current.failedAt ?? 0) > RETRY_AFTER_MS
+      if (!current || current.version !== OCR_VERSION || retry || force) {
         this.records[file] = {
           version: OCR_VERSION,
           revision: (current?.revision ?? 0) + 1,
@@ -104,7 +106,7 @@ class OcrIndex {
         await this.save()
       } catch (error) {
         if (this.desired.has(file) && this.records[file]?.revision === revision) {
-          this.records[file] = { ...this.records[file], state: 'failed', error: error.message }
+          this.records[file] = { ...this.records[file], state: 'failed', error: error.message, failedAt: Date.now() }
           await this.save()
         }
       } finally {
