@@ -113,5 +113,10 @@ app.use((error, _request, response, _next) => {
 
 app.listen(port, host, () => {
   console.log(`Project API listening on http://${host}:${port}`)
-  listProjects().then((projects) => ocrIndex.sync(projects)).catch((error) => console.error('Could not start OCR indexing:', error))
+  listProjects()
+    .then(async (projects) => {
+      await ocrIndex.sync(projects)
+      searchProjects(projects, '', 0, ocrIndex.records)
+    })
+    .catch((error) => console.error('Could not start search indexing:', error))
 })
