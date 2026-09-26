@@ -1,6 +1,6 @@
 ---
 name: verify-dashboard
-description: "Prove a dashboard change works by driving a disposable copy of the app in headless Chromium (and WebKit for an iPad-sized check): launch, click and type through the real UI, read back saved data, and capture screenshots. Use after any change to the dashboard's UI, API, or saved data, for /verify-dashboard, or when asked to show that a dashboard feature works."
+description: "Prove a dashboard change works by driving a disposable copy of the app in headless Chromium (and WebKit for an iPad-sized check): launch, click and type through the real UI, read back saved data, and capture screenshots. Use after a change to what the user can do or what gets saved, for a milestone sweep, for /verify-dashboard, or when asked to show that a dashboard feature works."
 ---
 
 # Verify the dashboard
@@ -16,9 +16,21 @@ node $C --help
 
 Node comes from fnm. If `node` is missing, `export PATH=~/.local/share/fnm/node-versions/v24.21.0/installation/bin:$PATH`.
 
-## 1. State the claim first
+## 0. Match the effort to the change
 
-Before editing code, write the claim in one or two sentences a non-programmer can check, and get the owner's agreement when the task came from them. Name the condition, the action, and the observable result, for example "On the Reading Study page, adding a to-do and reloading shows it in the open list, and it is saved in projects.json." Vague claims ("search is better") need a measurable form before work starts.
+The project is early and features change fast, so pick the tier before starting and do only what it asks.
+
+| Tier | Change | Verification |
+|---|---|---|
+| 1 | Copy, spacing, colour, a local fix that does not change what the user can do or what gets saved | `npm run lint` and `npm run build`; one screenshot if visual. Skip the rest of this skill. |
+| 2 | A feature or behavior change | Automatic, as part of the task: steps 1–6 for the changed behavior only. |
+| 3 | A finished feature area, shared foundations changed (`App.jsx` save queue, `server/project-store.js`, storage format), or the owner asks | Full sweep: walk `features/README.md` top to bottom and update the feature files. |
+
+When a tier-2 change touched shared foundations, say in the report that a sweep is worth running.
+
+## 1. State the claim
+
+Write the claim in one or two sentences a non-programmer can check: the condition, the action, and the observable result, for example "On the Reading Study page, adding a to-do and reloading shows it in the open list, and it is saved in projects.json." Vague claims ("search is better") need a measurable form. Ask the owner only when what they want is unclear; otherwise put the claim at the top of the report so they can check it afterwards.
 
 ## 2. Launch and doctor
 
@@ -33,7 +45,7 @@ The instance never touches the owner's dev server (5173/3001) or `data/projects.
 
 ## 3. Drive through the user path
 
-Read the feature file for the area you changed under `features/`, then drive every entry point it lists that the change can affect.
+Read the feature file for the area you changed under `features/`, then drive the entry points the change can affect. Tier 2 stops there; the full walk belongs to tier 3.
 
 ```bash
 node $C open "/?project=verify-alpha" --viewport desktop
@@ -86,7 +98,7 @@ Evidence stays in `.verify/evidence/<run>/` (git-ignored): screenshots plus `com
 
 ## Feature map
 
-`features/README.md` indexes one file per feature area. Each file answers, from the user's point of view, what exists, how a user reaches it, how to drive it with this CLI, and what tends to mislead. When a change adds or alters user-visible behavior, update the matching feature file in the same commit. When the app and a feature file disagree, decide which is wrong: fix the file for drift, report the app for a regression.
+`features/README.md` indexes one file per feature area. Each file answers, from the user's point of view, what exists, how a user reaches it, how to drive it with this CLI, and what tends to mislead. Feature files are brought up to date in tier-3 sweeps, not on every commit; while features are still moving, per-commit updates are mostly churn. A tier-2 change that adds a whole new feature area may add a short file for it. When the app and a feature file disagree, decide which is wrong: fix the file for drift, report the app for a regression.
 
 ## Gotchas
 
